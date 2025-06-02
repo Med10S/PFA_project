@@ -73,7 +73,7 @@ pip install -r requirements.txt
 
 Assurez-vous que les modèles suivants sont présents dans le dossier `models/` :
 - ✅ `KNN_best.pkl` - Modèle K-Nearest Neighbors
-- ⚠️ `mlp_best.pkl` - Réseau de neurones MLP (problème connu)
+- ✅ `mlp_best.pkl` - Réseau de neurones MLP 
 - ✅ `xgb_best.pkl` - Modèle XGBoost
 - ✅ `scaler.pkl` - Normalisateur StandardScaler
 - ✅ `label_encoders.pkl` - Encodeurs pour variables catégorielles
