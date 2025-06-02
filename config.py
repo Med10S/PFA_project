@@ -38,7 +38,7 @@ CONFIDENCE_THRESHOLD = 0.7  # Seuil de confiance pour alertes
 
 # Features du dataset UNSW-NB15 (dans l'ordre exact)
 FEATURE_NAMES = [
-    "id", "dur", "proto", "service", "state", "spkts", "dpkts", "sbytes", "dbytes", 
+    "dur", "proto", "service", "state", "spkts", "dpkts", "sbytes", "dbytes", 
     "rate", "sttl", "dttl", "sload", "dload", "sloss", "dloss", "sinpkt", "dinpkt", 
     "sjit", "djit", "swin", "stcpb", "dtcpb", "dwin", "tcprtt", "synack", "ackdat", 
     "smean", "dmean", "trans_depth", "response_body_len", "ct_srv_src", "ct_state_ttl", 
@@ -46,15 +46,25 @@ FEATURE_NAMES = [
     "ct_ftp_cmd", "ct_flw_http_mthd", "ct_src_ltm", "ct_srv_dst", "is_sm_ips_ports"
 ]
 
-# Features numériques (pour le preprocessing)
+# Features numériques (pour le preprocessing) - SANS 'id' car non utilisé pour prédiction
 NUMERIC_FEATURES = [
-    "id", "dur", "spkts", "dpkts", "sbytes", "dbytes", "rate", "sttl", "dttl", 
+    "dur", "spkts", "dpkts", "sbytes", "dbytes", "rate", "sttl", "dttl", 
     "sload", "dload", "sloss", "dloss", "sinpkt", "dinpkt", "sjit", "djit", 
     "swin", "stcpb", "dtcpb", "dwin", "tcprtt", "synack", "ackdat", "smean", 
     "dmean", "trans_depth", "response_body_len", "ct_srv_src", "ct_state_ttl", 
     "ct_dst_ltm", "ct_src_dport_ltm", "ct_dst_sport_ltm", "ct_dst_src_ltm", 
     "is_ftp_login", "ct_ftp_cmd", "ct_flw_http_mthd", "ct_src_ltm", "ct_srv_dst", 
     "is_sm_ips_ports"
+]
+
+# Features utilisées pour la modélisation (SANS 'id')
+MODEL_FEATURES = [
+    "dur", "proto", "service", "state", "spkts", "dpkts", "sbytes", "dbytes", 
+    "rate", "sttl", "dttl", "sload", "dload", "sloss", "dloss", "sinpkt", "dinpkt", 
+    "sjit", "djit", "swin", "stcpb", "dtcpb", "dwin", "tcprtt", "synack", "ackdat", 
+    "smean", "dmean", "trans_depth", "response_body_len", "ct_srv_src", "ct_state_ttl", 
+    "ct_dst_ltm", "ct_src_dport_ltm", "ct_dst_sport_ltm", "ct_dst_src_ltm", "is_ftp_login", 
+    "ct_ftp_cmd", "ct_flw_http_mthd", "ct_src_ltm", "ct_srv_dst", "is_sm_ips_ports"
 ]
 
 # Features catégorielles 

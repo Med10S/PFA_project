@@ -6,7 +6,7 @@ import pandas as pd
 import numpy as np
 import logging
 from typing import Dict, List, Union, Any
-from config import FEATURE_NAMES, NUMERIC_FEATURES, CATEGORICAL_FEATURES
+from config import FEATURE_NAMES, NUMERIC_FEATURES, CATEGORICAL_FEATURES, MODEL_FEATURES
 
 logger = logging.getLogger(__name__)
 
@@ -15,11 +15,11 @@ class RealtimePreprocessor:
     Préprocesseur pour les données temps réel
     Doit reproduire exactement le preprocessing de l'entraînement
     """
-    
     def __init__(self, scaler=None, label_encoders=None):
         self.scaler = scaler
         self.label_encoders = label_encoders or {}
         self.feature_names = FEATURE_NAMES
+        self.model_features = MODEL_FEATURES  # Features utilisées pour la prédiction (sans 'id')
         self.numeric_features = NUMERIC_FEATURES
         self.categorical_features = CATEGORICAL_FEATURES
         
@@ -124,13 +124,12 @@ class RealtimePreprocessor:
         try:
             # Copier le DataFrame
             df_processed = df.copy()
-            
-            # 1. Supprimer la colonne id si présente (pas utilisée pour la prédiction)
+              # 1. Supprimer la colonne id si présente (pas utilisée pour la prédiction)
             if 'id' in df_processed.columns:
                 df_processed = df_processed.drop('id', axis=1)
-                features_for_prediction = [f for f in self.feature_names if f != 'id']
-            else:
-                features_for_prediction = self.feature_names
+            
+            # Utiliser les MODEL_FEATURES (sans 'id') pour la prédiction
+            features_for_prediction = self.model_features
             
             # 2. Traiter les variables catégorielles
             for col in self.categorical_features:
@@ -195,8 +194,7 @@ class RealtimePreprocessor:
                 if feature not in data:
                     logger.error(f"Feature obligatoire manquante: {feature}")
                     return False
-            
-            # Vérifier les types de données
+              # Vérifier les types de données (exclure 'id' de la validation numérique)
             for feature in self.numeric_features:
                 if feature in data and feature != 'id':
                     try:
@@ -210,14 +208,15 @@ class RealtimePreprocessor:
         except Exception as e:
             logger.error(f"Erreur validation: {e}")
             return False
-    
     def get_feature_info(self) -> Dict[str, Any]:
         """
         Retourne des informations sur les features attendues
         """
         return {
             "total_features": len(self.feature_names),
+            "model_features": len(self.model_features),  # Features pour prédiction (sans 'id')
             "feature_names": self.feature_names,
+            "model_feature_names": self.model_features,
             "numeric_features": self.numeric_features,
             "categorical_features": self.categorical_features,
             "scaler_available": self.scaler is not None,

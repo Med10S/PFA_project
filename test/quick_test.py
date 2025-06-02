@@ -64,7 +64,7 @@ def test_prediction():
         
         # Données de test
         test_data = {
-            "id": 1, "dur": 0.121478, "proto": "tcp", "service": "http", "state": "FIN",
+           "dur": 0.121478, "proto": "tcp", "service": "http", "state": "FIN",
             "spkts": 8, "dpkts": 26, "sbytes": 1032, "dbytes": 15421, "rate": 194.836043,
             "sttl": 63, "dttl": 63, "sload": 8504.846381, "dload": 126910.215713,
             "sloss": 0, "dloss": 0, "sinpkt": 0.000772, "dinpkt": 0.001424,

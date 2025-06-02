@@ -32,7 +32,8 @@ class AdvancedEnsembleClassifier:
         logger.info(f"Poids des modèles définis : {weights}")
         
     def predict(self, X, strategy='weighted_voting'):
-        """Fait des prédictions avec la stratégie spécifiée"""
+        """Fait des prédictions avec la stratégie spécifiée caled from model_loader.py"""
+        """Prédit les classes avec la stratégie spécifiée"""
         if not self.is_fitted:
             raise ValueError("L'ensemble doit être chargé avec des modèles pré-entraînés")
             
@@ -59,13 +60,14 @@ class AdvancedEnsembleClassifier:
             
     def _predict_majority_voting(self, X):
         """Vote majoritaire"""
+        logger.info("🔄 Vote majoritaire")
         predictions = []
         for name, model in self.base_models.items():
             try:
                 pred = model.predict(X)
                 predictions.append(pred)
             except Exception as e:
-                logger.warning(f"Erreur prédiction {name}: {e}")
+                logger.warning(f"Erreur prédiction 4 {name}: {e}")
                 continue
                 
         if predictions:

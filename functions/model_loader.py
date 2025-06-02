@@ -68,7 +68,12 @@ class ModelLoader:
             
             if model_path.exists():
                 try:
-                    model = joblib.load(model_path)
+                    # Traitement spécial pour le MLP avec problème numpy
+                    if model_name == "mlp":
+                        model = self._load_mlp_with_fix(model_path)
+                    else:
+                        model = joblib.load(model_path)
+                    
                     self.models[model_name] = model
                     logger.info(f"  ✅ {model_name} chargé depuis {model_path}")
                 except Exception as e:
@@ -77,6 +82,39 @@ class ModelLoader:
                 logger.warning(f"  ⚠️ Fichier modèle introuvable: {model_path}")
         
         logger.info(f"📊 Modèles chargés: {list(self.models.keys())}")
+    
+    def _load_mlp_with_fix(self, model_path):
+        """Charge le MLP en gérant les problèmes de compatibilité numpy"""
+        import numpy as np
+        import pickle
+        
+        try:
+            # Essayer le chargement normal d'abord
+            return joblib.load(model_path)
+        except Exception as e:
+            if "MT19937" in str(e):
+                logger.info("  🔧 Tentative de correction du problème numpy MT19937...")
+                
+                # Essayer de charger avec pickle directement
+                try:
+                    with open(model_path, 'rb') as f:
+                        # Remplacer temporairement le BitGenerator
+                        old_mt19937 = getattr(np.random, '_MT19937', None)
+                        if hasattr(np.random, 'MT19937'):
+                            np.random._MT19937 = np.random.MT19937
+                        
+                        model = pickle.load(f)
+                        
+                        # Restaurer
+                        if old_mt19937:
+                            np.random._MT19937 = old_mt19937
+                        
+                        return model
+                except Exception as e2:
+                    logger.warning(f"    ⚠️ Échec correction pickle: {e2}")
+                    raise e
+            else:
+                raise e
     
     def _load_preprocessors(self):
         """Charge les préprocesseurs (scaler et encodeurs)"""
@@ -183,7 +221,6 @@ class ModelLoader:
             "preprocessor_available": self.preprocessor is not None,
             "is_ready": self.is_loaded
         }
-    
     def predict(self, data, strategy: str = "ensemble") -> Dict[str, Any]:
         """
         Méthode principale de prédiction - compatible avec le format attendu par FastAPI

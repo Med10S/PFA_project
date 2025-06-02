@@ -101,7 +101,7 @@ def test_single_detection():
         start_time = time.time()
         response = requests.post(
             f"{API_BASE_URL}/detect/single",
-            json=SAMPLE_LOGS[0],
+            json=SAMPLE_LOGS[1],
             headers={"Content-Type": "application/json"}
         )
         end_time = time.time()
@@ -193,7 +193,8 @@ def test_real_data():
     try:
         # Chargement de quelques lignes du dataset de test
         df = pd.read_csv("UNSW_NB15_training-set.csv")
-        sample_data = df.head(5)
+        # Sélectionner des données équilibrées entre lignes 240-250
+        sample_data = df.iloc[240:250]
         
         # Conversion en format compatible avec l'API
         logs = []

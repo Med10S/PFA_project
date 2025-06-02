@@ -235,7 +235,7 @@ async def detect_single_log(log: NetworkLog, background_tasks: BackgroundTasks):
         processed_data = preprocessor.preprocess(df)
         
         # Prédiction
-        prediction_result = model_loader.predict(processed_data)
+        prediction_result = model_loader.predict(processed_data,)
           # Création du résultat
         result = DetectionResult(
             log_id=log.id,
