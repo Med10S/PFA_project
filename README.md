@@ -1,5 +1,28 @@
 # Système de Détection d'Intrusion Réseau Temps Réel
 
+## 📑 Table des Matières
+
+- [🎯 Vue d'Ensemble](#-vue-densemble)
+- [🌟 Caractéristiques Principales](#-caractéristiques-principales)
+- [🏗️ Architecture du Système](#️-architecture-du-système)
+- [📋 Prérequis](#-prérequis)
+- [🚀 Installation et Démarrage](#-installation-et-démarrage)
+- [🐳 Configuration Docker](#-configuration-docker)
+- [📡 API Endpoints](#-api-endpoints)
+- [📊 Format des Données (UNSW-NB15)](#-format-des-données-unsw-nb15)
+- [🔧 Configuration](#-configuration)
+- [🚨 Système d'Alertes](#-système-dalertes)
+- [📈 Performance et Métriques](#-performance-et-métriques)
+- [🔄 Intégration avec ELK Stack](#-intégration-avec-elk-stack)
+- [🧪 Tests et Validation](#-tests-et-validation)
+- [🐛 Dépannage](#-dépannage)
+- [📚 Documentation API Complète](#-documentation-api-complète)
+- [🔒 Sécurité](#-sécurité)
+- [🚀 Déploiement Production](#-déploiement-production)
+- [📊 Monitoring et Métriques](#-monitoring-et-métriques)
+- [🔧 Maintenance et Évolution](#-maintenance-et-évolution)
+- [📞 Support et Ressources](#-support-et-ressources)
+
 ## 🎯 Vue d'Ensemble
 
 Ce projet implémente un système de détection d'intrusion réseau en temps réel basé sur l'intelligence artificielle. Il utilise des modèles de Machine Learning pré-entraînés sur le dataset UNSW-NB15 pour analyser le trafic réseau et détecter automatiquement les tentatives d'intrusion avec un haut niveau de précision.
@@ -99,6 +122,445 @@ python test\quick_test.py
 
 # Test manuel de l'API
 curl http://localhost:8000/health
+```
+
+## 🐳 Configuration Docker
+
+### Dockerfile Principal
+
+Créer un `Dockerfile` à la racine du projet :
+
+```dockerfile
+FROM python:3.9-slim
+
+# Métadonnées
+LABEL maintainer="PFA Network Security Team"
+LABEL description="Network Intrusion Detection System"
+LABEL version="1.0"
+
+# Configuration de l'environnement
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV APP_HOME=/app
+
+# Création de l'utilisateur non-root
+RUN groupadd -r appuser && useradd -r -g appuser appuser
+
+# Répertoire de travail
+WORKDIR $APP_HOME
+
+# Installation des dépendances système
+RUN apt-get update && apt-get install -y \
+    gcc \
+    && rm -rf /var/lib/apt/lists/*
+
+# Installation des dépendances Python
+COPY requirements.txt .
+RUN pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir -r requirements.txt
+
+# Copie du code source
+COPY . .
+
+# Création des répertoires nécessaires
+RUN mkdir -p logs models data \
+    && chown -R appuser:appuser $APP_HOME
+
+# Changement vers l'utilisateur non-root
+USER appuser
+
+# Port d'exposition
+EXPOSE 8000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8000/health || exit 1
+
+# Commande de démarrage
+CMD ["uvicorn", "realtime_detection_service:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]
+```
+
+### Docker Compose - Configuration Standalone
+
+Créer un fichier `docker-compose.yml` :
+
+```yaml
+version: '3.8'
+
+services:
+  ids-api:
+    build: .
+    container_name: network-ids
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./models:/app/models:ro
+      - ./logs:/app/logs
+      - ./config.py:/app/config.py:ro
+    environment:
+      - ENVIRONMENT=production
+      - LOG_LEVEL=INFO
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - ids-network
+
+  # Service de monitoring (optionnel)
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: ids-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    networks:
+      - ids-network
+
+networks:
+  ids-network:
+    driver: bridge
+```
+
+### Docker Compose avec ELK Stack
+
+Créer un fichier `docker-compose.elk.yml` pour l'intégration complète :
+
+```yaml
+version: '3.8'
+
+services:
+  # Service principal de détection
+  ids-api:
+    build: .
+    container_name: network-ids
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./models:/app/models:ro
+      - ./logs:/app/logs
+      - ./config.py:/app/config.py:ro
+    environment:
+      - ENVIRONMENT=production
+      - ELASTICSEARCH_HOST=elasticsearch
+      - ELASTICSEARCH_PORT=9200
+    depends_on:
+      - elasticsearch
+    networks:
+      - elk-network
+    restart: unless-stopped
+
+  # Elasticsearch
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.12.0
+    container_name: ids-elasticsearch
+    environment:
+      - node.name=elasticsearch
+      - cluster.name=ids-cluster
+      - discovery.type=single-node
+      - bootstrap.memory_lock=true
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - xpack.security.enabled=false
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data
+    ports:
+      - "9200:9200"
+    networks:
+      - elk-network
+
+  # Kibana
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.12.0
+    container_name: ids-kibana
+    ports:
+      - "5601:5601"
+    environment:
+      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+    depends_on:
+      - elasticsearch
+    networks:
+      - elk-network
+
+  # Logstash
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.12.0
+    container_name: ids-logstash
+    volumes:
+      - ./elk/logstash/pipeline:/usr/share/logstash/pipeline:ro
+      - ./elk/logstash/config:/usr/share/logstash/config:ro
+    ports:
+      - "5044:5044"
+      - "9600:9600"
+    environment:
+      LS_JAVA_OPTS: "-Xmx256m -Xms256m"
+    depends_on:
+      - elasticsearch
+    networks:
+      - elk-network
+
+  # Suricata (pour la capture réseau)
+  suricata:
+    image: jasonish/suricata:latest
+    container_name: ids-suricata
+    network_mode: host
+    cap_add:
+      - NET_ADMIN
+      - SYS_NICE
+    volumes:
+      - ./suricata/suricata.yaml:/etc/suricata/suricata.yaml:ro
+      - ./suricata/rules:/var/lib/suricata/rules:ro
+      - suricata-logs:/var/log/suricata
+    command: suricata -c /etc/suricata/suricata.yaml -i eth0
+
+volumes:
+  elasticsearch-data:
+    driver: local
+  suricata-logs:
+    driver: local
+
+networks:
+  elk-network:
+    driver: bridge
+```
+
+### Commandes Docker Essentielles
+
+```bash
+# Construction de l'image
+docker build -t network-ids:latest .
+
+# Démarrage rapide
+docker-compose up -d
+
+# Démarrage avec ELK Stack
+docker-compose -f docker-compose.elk.yml up -d
+
+# Visualisation des logs
+docker-compose logs -f ids-api
+
+# Arrêt des services
+docker-compose down
+
+# Nettoyage complet
+docker-compose down -v --remove-orphans
+
+# Reconstruction après modifications
+docker-compose up --build -d
+
+# Sauvegarde de l'image
+docker save network-ids:latest | gzip > network-ids-backup.tar.gz
+
+# Chargement de l'image sauvegardée
+docker load < network-ids-backup.tar.gz
+```
+
+### Configuration des Volumes
+
+Créer la structure de répertoires pour Docker :
+
+```bash
+# Création des répertoires
+mkdir -p elk/logstash/{config,pipeline}
+mkdir -p suricata/rules
+mkdir -p monitoring
+mkdir -p logs
+
+# Configuration Logstash
+cat > elk/logstash/pipeline/suricata.conf << EOF
+input {
+  file {
+    path => "/var/log/suricata/eve.json"
+    codec => json
+    type => "suricata"
+  }
+}
+
+filter {
+  if [type] == "suricata" {
+    # Envoi vers l'API de détection
+    http {
+      url => "http://ids-api:8000/analyze"
+      http_method => "post"
+      headers => {
+        "Content-Type" => "application/json"
+      }
+      mapping => {
+        "flow_data" => "%{message}"
+      }
+    }
+  }
+}
+
+output {
+  elasticsearch {
+    hosts => ["elasticsearch:9200"]
+    index => "network-security-%{+YYYY.MM.dd}"
+  }
+}
+EOF
+```
+
+### Variables d'Environnement Docker
+
+Créer un fichier `.env` :
+
+```env
+# Configuration générale
+ENVIRONMENT=production
+LOG_LEVEL=INFO
+API_PORT=8000
+
+# Configuration Elasticsearch
+ELASTICSEARCH_HOST=elasticsearch
+ELASTICSEARCH_PORT=9200
+ELASTICSEARCH_INDEX=network-security
+
+# Configuration des modèles
+MODEL_PATH=/app/models
+SCALER_PATH=/app/models/scaler.pkl
+
+# Configuration des alertes
+ALERT_WEBHOOK_URL=http://webhook.site/your-uuid
+ALERT_EMAIL_ENABLED=false
+
+# Limites de performance
+MAX_WORKERS=4
+REQUEST_TIMEOUT=30
+BATCH_SIZE=100
+```
+
+### Docker Multi-Stage Build (Optimisé)
+
+Version optimisée du Dockerfile pour la production :
+
+```dockerfile
+# Stage 1: Build environment
+FROM python:3.9-slim as builder
+
+WORKDIR /app
+
+# Installation des dépendances de build
+RUN apt-get update && apt-get install -y \
+    gcc \
+    g++ \
+    && rm -rf /var/lib/apt/lists/*
+
+# Installation des dépendances Python
+COPY requirements.txt .
+RUN pip install --user --no-cache-dir -r requirements.txt
+
+# Stage 2: Runtime environment
+FROM python:3.9-slim
+
+# Métadonnées
+LABEL maintainer="PFA Network Security Team"
+LABEL description="Network Intrusion Detection System - Production"
+LABEL version="1.0"
+
+# Configuration de l'environnement
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PATH="/root/.local/bin:${PATH}"
+ENV APP_HOME=/app
+
+# Création de l'utilisateur
+RUN groupadd -r appuser && useradd -r -g appuser appuser
+
+# Installation des dépendances runtime uniquement
+RUN apt-get update && apt-get install -y \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copie des dépendances depuis le stage builder
+COPY --from=builder /root/.local /root/.local
+
+# Répertoire de travail
+WORKDIR $APP_HOME
+
+# Copie du code
+COPY . .
+
+# Configuration des permissions
+RUN mkdir -p logs models data \
+    && chown -R appuser:appuser $APP_HOME
+
+USER appuser
+
+EXPOSE 8000
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8000/health || exit 1
+
+CMD ["uvicorn", "realtime_detection_service:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]
+```
+
+### Scripts de Déploiement
+
+Créer un script `deploy.sh` :
+
+```bash
+#!/bin/bash
+
+set -e
+
+echo "🚀 Déploiement du système de détection d'intrusion..."
+
+# Vérification des prérequis
+if ! command -v docker &> /dev/null; then
+    echo "❌ Docker n'est pas installé"
+    exit 1
+fi
+
+if ! command -v docker-compose &> /dev/null; then
+    echo "❌ Docker Compose n'est pas installé"
+    exit 1
+fi
+
+# Création des répertoires
+mkdir -p logs models data elk/logstash/{config,pipeline} suricata/rules monitoring
+
+# Vérification des modèles
+echo "🔍 Vérification des modèles..."
+required_models=("KNN_best.pkl" "mlp_best.pkl" "xgb_best.pkl" "scaler.pkl")
+for model in "${required_models[@]}"; do
+    if [ ! -f "models/$model" ]; then
+        echo "❌ Modèle manquant: $model"
+        exit 1
+    fi
+done
+echo "✅ Tous les modèles sont présents"
+
+# Construction et démarrage
+echo "🏗️ Construction de l'image Docker..."
+docker-compose build
+
+echo "🚀 Démarrage des services..."
+docker-compose up -d
+
+echo "⏳ Attente du démarrage des services..."
+sleep 30
+
+# Vérification de la santé
+echo "🏥 Vérification de la santé du service..."
+if curl -f http://localhost:8000/health; then
+    echo "✅ Service démarré avec succès!"
+    echo "📊 Interface disponible sur: http://localhost:8000"
+    echo "📈 Monitoring Kibana: http://localhost:5601 (si ELK activé)"
+else
+    echo "❌ Échec du démarrage du service"
+    docker-compose logs ids-api
+    exit 1
+fi
+
+echo "🎉 Déploiement terminé!"
 ```
 
 ## 📡 API Endpoints

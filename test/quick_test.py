@@ -21,7 +21,7 @@ def test_imports():
         import functions.preprocessing as preprocessing
         print("✅ Preprocessing importé")
         
-        import ensemble_models
+        import functions.ensemble_models as ensemble_models
         print("✅ Ensemble models importé")
         
         import functions.model_loader as model_loader

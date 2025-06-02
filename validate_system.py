@@ -31,7 +31,7 @@ try:
     import functions.preprocessing as preprocessing
     print("✅ preprocessing")
     
-    import ensemble_models
+    import functions.ensemble_models as ensemble_models
     print("✅ ensemble_models")
     
     import functions.model_loader as model_loader

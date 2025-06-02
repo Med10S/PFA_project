@@ -10,7 +10,7 @@ from typing import Dict, Any, Optional
 from sklearn.ensemble import IsolationForest
 
 from config import MODELS_CONFIG, SCALER_PATH, LABEL_ENCODERS_PATH
-from ensemble_models import AdvancedEnsembleClassifier, HybridDetectionSystem
+from functions.ensemble_models import AdvancedEnsembleClassifier, HybridDetectionSystem
 from functions.preprocessing import RealtimePreprocessor
 
 logger = logging.getLogger(__name__)

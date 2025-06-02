@@ -1,7 +1,9 @@
 
-!*_final.pkl
+!*_best.pkl
 *.arff
 catboost_info/
 *.json
 PhishingEmail
 *.zip
+*.cpython-312.pyc
+

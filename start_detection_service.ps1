@@ -29,7 +29,7 @@ $requiredFiles = @(
     "config.py", 
     "/functions/model_loader.py",
     "/functions/preprocessing.py",
-    "ensemble_models.py",
+    "/functions/ensemble_models.py",
     "requirements.txt"
 )
 
@@ -86,7 +86,7 @@ try {
         exit 1
     }
 } catch {
-    Write-Host "❌ Erreur lors de l'installation: $($_.Exception.Message)" -ForegroundColor Red
+    Write-Host "❌ Erreur lors de l installation: $($_.Exception.Message)" -ForegroundColor Red
     exit 1
 }
 
@@ -133,4 +133,4 @@ try {
     }
 }
 
-Write-Host "👋 Service arrêté" -ForegroundColor Yellow
+Write-Host "Service arrêté" -ForegroundColor Yellow
