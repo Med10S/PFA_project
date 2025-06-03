@@ -1,8 +1,8 @@
 # Multi-stage Dockerfile for PFA Network Detection Project
-# Stage 1: Base image with dependencies
+# Stage 1: Base image with source code
 FROM python:3.9-slim as base
 
-# Install system dependencies including git
+# Install system dependencies
 RUN apt-get update && apt-get install -y \
     git \
     curl \
@@ -13,14 +13,14 @@ RUN apt-get update && apt-get install -y \
 # Set working directory
 WORKDIR /app
 
+# Clone the repository once for all stages
+RUN git clone https://github.com/Med10S/PFA_project.git . && \
+    rm -rf .git
+
 # Stage 2: Development image
 FROM base as development
 
-# Clone the repository from GitHub
-RUN git clone https://github.com/Med10S/PFA_project.git .
-
 # Install Python dependencies
-COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Install additional ML dependencies if not in requirements.txt
@@ -56,11 +56,7 @@ CMD ["python", "realtime_detection_service.py"]
 # Stage 3: Production image
 FROM base as production
 
-# Clone the repository (production version)
-RUN git clone  https://github.com/Med10S/PFA_project.git .
-
 # Install only production dependencies
-COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt && \
     pip install --no-cache-dir gunicorn
 
