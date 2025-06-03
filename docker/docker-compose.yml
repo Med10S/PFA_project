@@ -1,0 +1,74 @@
+version: '3.8'
+
+services:
+  # Development service
+  pfa-dev:
+    build:
+      context: .
+      target: development
+    container_name: pfa-detection-dev
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./models:/app/models
+      - ./data:/app/data
+      - ./logs:/app/logs
+    environment:
+      - ENVIRONMENT=development
+      - MODEL_PATH=/app/models
+      - DATA_PATH=/app/data
+      - PYTHONPATH=/app
+    networks:
+      - pfa-network
+    restart: unless-stopped
+
+  # Elasticsearch for logging
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.16.1
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false # Désactive la sécurité pour simplifier le projet initial
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    networks:
+      - pfa-network
+    restart: unless-stopped
+
+  # Kibana for log visualization
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.16.1
+    container_name: kibana
+    ports:
+      - "5601:5601"
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    depends_on:
+      - elasticsearch
+    networks:
+      - pfa-network
+    restart: unless-stopped
+
+  # Logstash for log processing
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.10.0
+    container_name: logstash
+    volumes:
+      - ./logstash.conf:/usr/share/logstash/pipeline/logstash.conf # Montage du fichier de configuration
+      - ./java_logs.log:/usr/share/logstash/logs/java_logs.log # Répertoire contenant vos logs
+    ports:
+      - "5044:5044" # Port pour l'envoi des logs
+    depends_on:
+      - elasticsearch
+    networks:
+      - pfa-network
+    restart: unless-stopped
+
+networks:
+  pfa-network:
+    driver: bridge
+
+volumes:
+  redis_data:
+  elasticsearch_data:

@@ -128,78 +128,178 @@ curl http://localhost:8000/health
 
 ### Dockerfile Principal
 
-Créer un `Dockerfile` à la racine du projet :
+Le système utilise maintenant un Dockerfile multi-stage qui clone automatiquement le projet depuis GitHub :
+
+### 🔄 Clonage depuis GitHub
+
+Le Dockerfile principal clone automatiquement le code depuis le repository GitHub :
 
 ```dockerfile
-FROM python:3.9-slim
+# Multi-stage Dockerfile for PFA Network Detection Project
+# Stage 1: Base image with dependencies
+FROM python:3.9-slim as base
 
-# Métadonnées
-LABEL maintainer="PFA Network Security Team"
-LABEL description="Network Intrusion Detection System"
-LABEL version="1.0"
-
-# Configuration de l'environnement
-ENV PYTHONUNBUFFERED=1
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV APP_HOME=/app
-
-# Création de l'utilisateur non-root
-RUN groupadd -r appuser && useradd -r -g appuser appuser
-
-# Répertoire de travail
-WORKDIR $APP_HOME
-
-# Installation des dépendances système
+# Install system dependencies including git
 RUN apt-get update && apt-get install -y \
+    git \
+    curl \
     gcc \
+    g++ \
     && rm -rf /var/lib/apt/lists/*
 
-# Installation des dépendances Python
+# Set working directory
+WORKDIR /app
+
+# Stage 2: Development image
+FROM base as development
+
+# Clone the repository from GitHub
+RUN git clone https://github.com/Med10S/PFA_project.git .
+
+# Install Python dependencies
 COPY requirements.txt .
-RUN pip install --no-cache-dir --upgrade pip \
-    && pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Copie du code source
-COPY . .
+# Install additional ML dependencies
+RUN pip install --no-cache-dir \
+    scikit-learn==1.3.0 \
+    pandas==2.0.3 \
+    numpy==1.24.3 \
+    matplotlib==3.7.2 \
+    seaborn==0.12.2 \
+    tqdm==4.65.0 \
+    fastapi==0.100.1 \
+    uvicorn==0.23.2
 
-# Création des répertoires nécessaires
-RUN mkdir -p logs models data \
-    && chown -R appuser:appuser $APP_HOME
+# Set environment variables
+ENV PYTHONPATH=/app
+ENV PYTHONUNBUFFERED=1
+ENV MODEL_PATH=/app/models
+ENV DATA_PATH=/app/data
 
-# Changement vers l'utilisateur non-root
-USER appuser
+# Create necessary directories
+RUN mkdir -p /app/models /app/data /app/logs
 
-# Port d'exposition
+# Expose port for the detection service
 EXPOSE 8000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
-# Commande de démarrage
-CMD ["uvicorn", "realtime_detection_service:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]
+# Default command
+CMD ["python", "realtime_detection_service.py"]
+
+# Stage 3: Production image
+FROM base as production
+
+# Clone the repository (production version)
+RUN git clone  https://github.com/Med10S/PFA_project.git .
+
+# Install only production dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt && \
+    pip install --no-cache-dir gunicorn
+
+# Create non-root user for security
+RUN useradd --create-home --shell /bin/bash pfa_user && \
+    chown -R pfa_user:pfa_user /app
+
+USER pfa_user
+
+# Set environment variables for production
+ENV PYTHONPATH=/app
+ENV PYTHONUNBUFFERED=1
+ENV MODEL_PATH=/app/models
+ENV DATA_PATH=/app/data
+ENV ENVIRONMENT=production
+
+# Expose port
+EXPOSE 8000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8000/health || exit 1
+
+# Production command with gunicorn
+CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "4", "--worker-class", "uvicorn.workers.UvicornWorker", "realtime_detection_service:app"]
+```
+
+### 🚀 Scripts de Déploiement Automatisé
+
+Utilisation des scripts fournis pour simplifier le déploiement :
+
+#### Linux/macOS :
+```bash
+# Construction des images
+./docker-deploy.sh build
+
+# Déploiement standalone
+./docker-deploy.sh standalone
+
+# Déploiement avec ELK Stack
+./docker-deploy.sh full
+
+# Entraînement des modèles
+./docker-deploy.sh train
+
+# Sauvegarde d'un conteneur en image
+./docker-deploy.sh commit <container_name> <image_name>
+
+# Nettoyage
+./docker-deploy.sh cleanup
+```
+
+#### Windows :
+```batch
+REM Construction des images
+docker-deploy.bat build
+
+REM Déploiement standalone
+docker-deploy.bat standalone
+
+REM Déploiement avec ELK Stack
+docker-deploy.bat full
+
+REM Entraînement des modèles
+docker-deploy.bat train
+
+REM Sauvegarde d'un conteneur en image
+docker-deploy.bat commit <container_name> <image_name>
+
+REM Nettoyage
+docker-deploy.bat cleanup
 ```
 
 ### Docker Compose - Configuration Standalone
 
-Créer un fichier `docker-compose.yml` :
+Le système propose maintenant 3 configurations Docker Compose différentes :
+
+#### 1. Configuration Standalone (Recommandée pour la plupart des cas)
+
+Fichier : `docker-compose.standalone.yml`
 
 ```yaml
 version: '3.8'
 
 services:
-  ids-api:
-    build: .
-    container_name: network-ids
+  # Standalone PFA Detection Service
+  pfa-detection:
+    build:
+      context: .
+      target: production
+    container_name: pfa-detection-standalone
     ports:
       - "8000:8000"
     volumes:
       - ./models:/app/models:ro
+      - ./data:/app/data:ro
       - ./logs:/app/logs
-      - ./config.py:/app/config.py:ro
     environment:
       - ENVIRONMENT=production
-      - LOG_LEVEL=INFO
+      - MODEL_PATH=/app/models
+      - DATA_PATH=/app/data
+      - PYTHONPATH=/app
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
@@ -207,7 +307,23 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
-    networks:
+
+networks:
+  default:
+    driver: bridge
+```
+
+#### 2. Configuration Complète avec ELK Stack
+
+Fichier : `docker-compose.yml` (Configuration complète avec développement, production, et monitoring)
+
+Cette configuration inclut :
+- Service de développement (`pfa-dev`) sur le port 8000
+- Service de production (`pfa-prod`) sur le port 8001  
+- Service d'entraînement (`pfa-training`)
+- Stack ELK complète (Elasticsearch, Kibana, Logstash)
+- Redis pour le cache
+- Surveillance et métriques
       - ids-network
 
   # Service de monitoring (optionnel)
@@ -333,33 +449,73 @@ networks:
 
 ### Commandes Docker Essentielles
 
-```bash
-# Construction de l'image
-docker build -t network-ids:latest .
+#### Construction et Déploiement
 
-# Démarrage rapide
+```powershell
+# Construction des images multi-stage
+docker build --target development -t pfa-detection:dev .
+docker build --target production -t pfa-detection:prod .
+docker build --target training -t pfa-detection:training .
+
+# Déploiement standalone (recommandé)
+docker-compose -f docker-compose.standalone.yml up -d
+
+# Déploiement complet avec ELK Stack
 docker-compose up -d
 
-# Démarrage avec ELK Stack
-docker-compose -f docker-compose.elk.yml up -d
+# Entraînement des modèles
+docker-compose run --rm pfa-training
 
 # Visualisation des logs
-docker-compose logs -f ids-api
+docker-compose logs -f pfa-detection
+docker-compose -f docker-compose.standalone.yml logs -f pfa-detection
 
 # Arrêt des services
 docker-compose down
+docker-compose -f docker-compose.standalone.yml down
 
 # Nettoyage complet
 docker-compose down -v --remove-orphans
+docker system prune -f
 
 # Reconstruction après modifications
 docker-compose up --build -d
+```
 
-# Sauvegarde de l'image
-docker save network-ids:latest | gzip > network-ids-backup.tar.gz
+#### Sauvegarde et Restauration
 
-# Chargement de l'image sauvegardée
-docker load < network-ids-backup.tar.gz
+```powershell
+# Sauvegarde des images
+docker save pfa-detection:prod | gzip > pfa-detection-backup.tar.gz
+
+# Chargement d'une image sauvegardée
+docker load < pfa-detection-backup.tar.gz
+
+# Commit d'un conteneur modifié en nouvelle image
+docker commit pfa-detection-standalone pfa-detection:custom-v1.1
+
+# Export des volumes de données
+docker run --rm -v pfa_models:/data -v ${PWD}:/backup alpine tar czf /backup/models-backup.tar.gz -C /data .
+```
+
+#### Monitoring et Debug
+
+```powershell
+# Vérification de l'état des services
+docker-compose ps
+
+# Inspection des ressources utilisées
+docker stats
+
+# Exécution de commandes dans un conteneur en cours
+docker exec -it pfa-detection-standalone bash
+
+# Vérification des logs d'un service spécifique
+docker-compose logs -f elasticsearch
+docker-compose logs -f kibana
+
+# Test de santé du service
+curl http://localhost:8000/health
 ```
 
 ### Configuration des Volumes
