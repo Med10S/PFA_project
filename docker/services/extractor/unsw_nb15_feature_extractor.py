@@ -14,8 +14,8 @@ class UNSW_NB15_FeatureExtractor:
     Calcule les 42 features exactes requises par les modèles ML
     """
     def __init__(self):
-        # Use lambda to ensure a fresh flow is created each time
-        self.flows = defaultdict(lambda: self._create_empty_flow())
+        # Use method reference to ensure a fresh flow is created each time
+        self.flows = defaultdict(self._create_empty_flow)
         self.connection_tracking = defaultdict(lambda: defaultdict(int))
         self.service_ports = {
             20: 'ftp-data', 21: 'ftp', 22: 'ssh', 23: 'telnet', 25: 'smtp',
@@ -99,14 +99,21 @@ class UNSW_NB15_FeatureExtractor:
             '_direction': None
         }
         
-        # DEBUG: Verify all critical keys exist
-        critical_keys = ['_packets', '_src_packets', '_dst_packets', '_tcp_flags']
-        for key in critical_keys:
-            if key not in flow:
-                print(f"❌ ERREUR: Clé manquante dans flow: {key}")
-        
         return flow
     
+    def _ensure_flow_integrity(self, flow):
+        """S'assurer que le flow a tous les attributs requis"""
+        required_tracking_attrs = ['_packets', '_first_time', '_last_time', '_src_packets', '_dst_packets', '_tcp_flags', '_direction']
+        
+        for attr in required_tracking_attrs:
+            if attr not in flow:
+                if attr in ['_first_time', '_last_time', '_direction']:
+                    flow[attr] = None
+                else:
+                    flow[attr] = []
+        
+        return flow
+
     def reset_flows(self):
         """Remet à zéro l'extracteur pour un nouveau batch"""
         self.flows.clear()
@@ -260,14 +267,8 @@ class UNSW_NB15_FeatureExtractor:
             key, direction = flow_key[:-1], flow_key[-1]
             flow = self.flows[key]
             
-            # DEBUG: Vérifier que flow a tous les attributs requis
-            if '_packets' not in flow:
-                print(f"❌ ERREUR: flow {key} n'a pas l'attribut '_packets'")
-                print(f"🔍 Attributs présents: {list(flow.keys())}")
-                # Recréer le flow si corrompu
-                flow = self._create_empty_flow()
-                self.flows[key] = flow
-                print(f"🔧 Flow recréé avec attributs: {list(flow.keys())}")
+            # S'assurer que le flow est correctement initialisé
+            flow = self._ensure_flow_integrity(flow)
             
             # Enregistrer le paquet
             packet_time = float(packet.time)
@@ -431,6 +432,10 @@ class UNSW_NB15_FeatureExtractor:
     def _second_pass_features(self):
         """Calcule les features avancées pour chaque flow"""
         for key, flow in self.flows.items():
+            # S'assurer que le flow est correctement structuré
+            flow = self._ensure_flow_integrity(flow)
+            self.flows[key] = flow  # Mettre à jour le flow dans le dictionnaire
+            
             self._calculate_timing_features(flow)
             self._calculate_statistical_features(flow)
             self._calculate_connection_tracking_features(flow, key)
@@ -438,12 +443,6 @@ class UNSW_NB15_FeatureExtractor:
 
     def _calculate_timing_features(self, flow):
         """Calcule les features de timing"""
-        # DEBUG: Vérifier que _packets existe
-        if '_packets' not in flow:
-            print(f"❌ ERREUR: _packets manquant dans _calculate_timing_features")
-            print(f"🔍 Clés disponibles: {list(flow.keys())}")
-            return
-        
         if not flow['_packets']:
             return
             
@@ -495,12 +494,6 @@ class UNSW_NB15_FeatureExtractor:
         """Calcule les features de connection tracking"""
         # Ces features nécessitent de tracker les connexions globalement
         # Implémentation simplifiée pour démonstration
-        
-        # DEBUG: Vérifier que _packets existe
-        if '_packets' not in flow:
-            print(f"❌ ERREUR: _packets manquant dans _calculate_connection_tracking_features")
-            print(f"🔍 Clés disponibles: {list(flow.keys())}")
-            return
         
         # ct_srv_src: connections to same service from same source
         # ct_state_ttl: connections with same state and TTL
@@ -581,24 +574,16 @@ def main():
             
             # Afficher les statistiques
             print(f"\n📊 Statistiques des features extraites:")
-            print(f"   Nombre de flows: {len(df)}")
-            print(f"   Nombre de features: {len(df.columns)}")
-            print(f"   Protocoles: {df['proto'].value_counts().to_dict()}")
-            print(f"   Services: {df['service'].value_counts().head().to_dict()}")
-            print(f"   États: {df['state'].value_counts().to_dict()}")
-            
-            print(f"\n📋 Aperçu des données:")
+            print(f"Nombre de flows: {len(df)}")
+            print(f"Nombre de features: {len(df.columns)}")
+            print("\nPremières lignes:")
             print(df.head())
             
-            print(f"\n📈 Statistiques descriptives:")
-            print(df.describe())
-            
         else:
-            print("❌ Aucun flow extrait")
+            print("❌ Aucun flow extrait!")
             
     except FileNotFoundError:
         print("❌ Fichier trafic.pcap non trouvé!")
-        print("Placez votre fichier PCAP dans le répertoire courant.")
     except Exception as e:
         print(f"❌ Erreur: {e}")
 
