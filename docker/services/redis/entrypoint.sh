@@ -12,6 +12,8 @@ envsubst < /usr/local/etc/redis/redis.conf.template > /usr/local/etc/redis/redis
 
 # Add password if provided
 if [ -n "$REDIS_PASSWORD" ]; then
+    echo "" >> /usr/local/etc/redis/redis.conf
+    echo "# Password configuration" >> /usr/local/etc/redis/redis.conf
     echo "requirepass $REDIS_PASSWORD" >> /usr/local/etc/redis/redis.conf
 fi
 
