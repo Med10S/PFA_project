@@ -151,7 +151,6 @@ class FeatureExtractionService:
         except Exception as e:
             logger.error(f"Erreur traitement données paquet: {e}")
             return None
-    
     def create_temp_pcap(self, packets_data):
         """Crée un fichier PCAP temporaire à partir des données du service de capture"""
         try:
@@ -159,7 +158,10 @@ class FeatureExtractionService:
             temp_file = self.temp_dir / f"temp_{timestamp}.pcap"
             
             # Reconstruction des paquets Scapy depuis les données du service de capture
-            from scapy.all import Packet
+            from scapy.all import Ether
+            from scapy.layers.inet import IP
+            import struct
+            
             scapy_packets = []
             
             for packet_data in packets_data:
@@ -169,7 +171,19 @@ class FeatureExtractionService:
                     if raw_bytes:
                         # Décodage base64 des données brutes
                         packet_bytes = base64.b64decode(raw_bytes)
-                        packet = Packet(packet_bytes)
+                        
+                        # Reconstruction correcte du paquet en spécifiant la couche de base
+                        try:
+                            # Essai avec Ethernet en premier
+                            packet = Ether(packet_bytes)
+                        except:
+                            try:
+                                # Fallback vers IP si pas Ethernet
+                                packet = IP(packet_bytes)
+                            except:
+                                # Dernier recours : paquet brut
+                                from scapy.all import Raw
+                                packet = Raw(packet_bytes)
                         
                         # Restaurer le timestamp si disponible
                         packet.time = packet_data.get('capture_time', time.time())
@@ -180,15 +194,27 @@ class FeatureExtractionService:
                     continue
                     
             if scapy_packets:
-                wrpcap(str(temp_file), scapy_packets)
-                logger.debug(f"PCAP temporaire créé: {temp_file} ({len(scapy_packets)} paquets)")
-                return temp_file
+                # Écriture avec gestion d'erreur pour les types de liens incohérents
+                try:
+                    wrpcap(str(temp_file), scapy_packets)
+                    logger.debug(f"PCAP temporaire créé: {temp_file} ({len(scapy_packets)} paquets)")
+                    return temp_file
+                except Exception as write_error:
+                    logger.warning(f"Erreur écriture PCAP standard: {write_error}")
+                    # Fallback: écrire avec un type de lien fixe
+                    from scapy.all import PcapWriter
+                    with PcapWriter(str(temp_file), linktype=1) as writer:  # Ethernet
+                        for pkt in scapy_packets:
+                            writer.write(pkt)
+                    logger.debug(f"PCAP temporaire créé (fallback): {temp_file} ({len(scapy_packets)} paquets)")
+                    return temp_file
             else:
                 logger.warning("Aucun paquet valide pour PCAP")
                 return None
                 
         except Exception as e:
             logger.error(f"Erreur création PCAP temporaire: {e}")
+            logger.error(f"Traceback: {traceback.format_exc()}")
             return None
             
     def extract_features(self, temp_pcap_file):
