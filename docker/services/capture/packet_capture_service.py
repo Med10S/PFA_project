@@ -28,10 +28,10 @@ REDIS_HOST = os.getenv('REDIS_HOST', 'redis')
 REDIS_PORT = int(os.getenv('REDIS_PORT', '6379'))
 LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
 REDIS_PASSWORD = os.getenv('REDIS_PASSWORD', None)
+ENCRYPTION_KEY = os.getenv('ENCRYPTION_KEY', Fernet.generate_key())
 
 
 # Sécurité
-ENCRYPTION_KEY = os.getenv('ENCRYPTION_KEY', Fernet.generate_key())
 PACKET_QUEUE = 'packet_queue'
 STATUS_QUEUE = 'capture_status'
 BACKUP_DIR = Path('/app/buffer')

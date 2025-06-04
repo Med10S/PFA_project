@@ -30,6 +30,10 @@ EXPOSE 9004
 # Variables d'environnement par défaut
 ENV PYTHONUNBUFFERED=1
 ENV FLASK_APP=backup_service.py
+ENV REDIS_HOST=redis
+ENV REDIS_PORT=6379
+ENV REDIS_DB=0
+ENV REDIS_PASSWORD=""
 
 # Volume pour les sauvegardes
 VOLUME ["/app/backups"]

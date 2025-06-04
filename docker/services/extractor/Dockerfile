@@ -32,7 +32,14 @@ EXPOSE 9002
 # Variables d'environnement par défaut
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONPATH=/app
-ENV API_ENDPOINT=http://localhost:5000
+ENV REDIS_HOST=redis \
+    REDIS_PORT=6379 \
+    PROCESSING_WORKERS=4 \
+    BATCH_SIZE=100 \
+    API_ENDPOINT=http://ml-api:8001 \
+    LOG_LEVEL=INFO \
+    ENCRYPTION_KEY= \
+    NODE_ID=extractor-node
 
 # Commande de démarrage
 CMD ["python", "feature_extraction_service.py"]

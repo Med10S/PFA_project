@@ -32,6 +32,14 @@ EXPOSE 9001
 # Variables d'environnement par défaut
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONPATH=/app
+ENV INTERFACE=eth0 \
+    CAPTURE_INTERVAL=10 \
+    BUFFER_SIZE=1000 \
+    REDIS_HOST=redis \
+    REDIS_PORT=6379 \
+    LOG_LEVEL=INFO \
+    REDIS_PASSWORD="" \
+    ENCRYPTION_KEY=""
 
 # Commande de démarrage
 CMD ["python", "packet_capture_service.py"]

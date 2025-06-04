@@ -35,11 +35,12 @@ logger = logging.getLogger(__name__)
 class ServiceMonitor:
     """Moniteur pour un service spécifique"""
     
-    def __init__(self, name: str, url: str, port: int, check_interval: int = 30):
+    def __init__(self, name: str, url: str, port: int, check_interval: int = None):
         self.name = name
         self.url = url
         self.port = port
-        self.check_interval = check_interval
+        self.check_interval = check_interval or int(os.getenv('SERVICE_CHECK_INTERVAL', '30'))
+        self.timeout = int(os.getenv('SERVICE_TIMEOUT', '5'))
         self.status = "unknown"
         self.last_check = None
         self.response_time = None
@@ -51,7 +52,7 @@ class ServiceMonitor:
         start_time = time.time()
         
         try:
-            response = requests.get(f"{self.url}:{self.port}/health", timeout=5)
+            response = requests.get(f"{self.url}:{self.port}/health", timeout=self.timeout)
             response_time = (time.time() - start_time) * 1000  # en ms
             
             if response.status_code == 200:
@@ -157,21 +158,41 @@ class RedisMonitor:
 
 class MonitoringService:
     """Service principal de monitoring"""
-    
     def __init__(self):
-        # Configuration
-        self.redis_client = redis.Redis(host='redis', port=6379, decode_responses=True)
+        # Configuration Redis via variables d'environnement
+        redis_host = os.getenv('REDIS_HOST', 'redis')
+        redis_port = int(os.getenv('REDIS_PORT', '6379'))
+        redis_db = int(os.getenv('REDIS_DB', '0'))
+        redis_password = os.getenv('REDIS_PASSWORD', None)
+        
+        self.redis_client = redis.Redis(
+            host=redis_host, 
+            port=redis_port, 
+            db=redis_db,
+            password=redis_password,
+            decode_responses=True
+        )
+        
         self.system_monitor = SystemMonitor()
         self.redis_monitor = RedisMonitor(self.redis_client)
         
-        # Services à monitorer
-        self.service_monitors = {
-            'packet-capture': ServiceMonitor('packet-capture', 'http://packet-capture', 9001),
-            'feature-extractor': ServiceMonitor('feature-extractor', 'http://feature-extractor', 9002),
-            'ml-api': ServiceMonitor('ml-api', 'http://ml-api', 5000),
-            'alert-manager': ServiceMonitor('alert-manager', 'http://alert-manager', 9003),
-            'backup-service': ServiceMonitor('backup-service', 'http://backup-service', 9004)
-        }
+        # Configuration Flask via variables d'environnement
+        self.flask_host = os.getenv('FLASK_HOST', '0.0.0.0')
+        self.flask_port = int(os.getenv('FLASK_PORT', '9000'))
+        self.flask_debug = os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
+        
+        # Configuration des seuils d'alerte via variables d'environnement
+        self.cpu_threshold = float(os.getenv('CPU_ALERT_THRESHOLD', '90'))
+        self.memory_threshold = float(os.getenv('MEMORY_ALERT_THRESHOLD', '90'))
+        self.disk_threshold = float(os.getenv('DISK_ALERT_THRESHOLD', '90'))
+        
+        # Configuration monitoring via variables d'environnement
+        self.monitoring_interval = int(os.getenv('MONITORING_INTERVAL', '30'))
+        self.history_limit = int(os.getenv('HISTORY_LIMIT', '1000'))
+        self.dashboard_refresh = int(os.getenv('DASHBOARD_REFRESH', '30'))
+        
+        # Services à monitorer via variables d'environnement
+        self.service_monitors = self._setup_service_monitors()
         
         # Métriques globales
         self.global_metrics = {
@@ -185,10 +206,39 @@ class MonitoringService:
         # Flask app pour l'interface web
         self.app = Flask(__name__)
         self.setup_routes()
-        
-        # Thread de monitoring
+          # Thread de monitoring
         self.monitoring_thread = threading.Thread(target=self.monitoring_loop, daemon=True)
         self.running = False
+    
+    def _setup_service_monitors(self) -> Dict:
+        """Configure les moniteurs de services via variables d'environnement"""
+        services = {}
+        
+        # Configuration par défaut des services
+        default_services = {
+            'packet-capture': {'host': 'packet-capture', 'port': 9001},
+            'feature-extractor': {'host': 'feature-extractor', 'port': 9002},
+            'ml-api': {'host': 'ml-api', 'port': 5000},
+            'alert-manager': {'host': 'alert-manager', 'port': 9003},
+            'backup-service': {'host': 'backup-service', 'port': 9004}
+        }
+        
+        # Lecture des services depuis les variables d'environnement
+        for service_name, defaults in default_services.items():
+            env_prefix = service_name.upper().replace('-', '_')
+            host = os.getenv(f'{env_prefix}_HOST', defaults['host'])
+            port = int(os.getenv(f'{env_prefix}_PORT', str(defaults['port'])))
+            protocol = os.getenv(f'{env_prefix}_PROTOCOL', 'http')
+            enabled = os.getenv(f'{env_prefix}_ENABLED', 'true').lower() == 'true'
+            
+            if enabled:
+                services[service_name] = ServiceMonitor(
+                    service_name, 
+                    f"{protocol}://{host}", 
+                    port
+                )
+        
+        return services
         
     def setup_routes(self):
         """Configuration des routes Flask"""
@@ -201,7 +251,7 @@ class MonitoringService:
         def metrics():
             """API des métriques au format JSON"""
             return jsonify(self.get_all_metrics())
-            
+
         @self.app.route('/')
         def dashboard():
             """Dashboard web de monitoring"""
@@ -210,7 +260,7 @@ class MonitoringService:
             <html>
             <head>
                 <title>IDS Monitoring Dashboard</title>
-                <meta http-equiv="refresh" content="30">
+                <meta http-equiv="refresh" content="{dashboard_refresh}">
                 <style>
                     body { font-family: Arial, sans-serif; margin: 20px; }
                     .metric-card { 
@@ -276,8 +326,7 @@ class MonitoringService:
                     <h3>Alerts Generated</h3>
                     <div class="metric-value">{{ global_metrics.alerts_generated }}</div>
                 </div>
-                
-                <p><em>Page refreshed automatically every 30 seconds</em></p>
+                <p><em>Page refreshed automatically every {dashboard_refresh} seconds</em></p>
             </body>
             </html>
             '''
@@ -328,10 +377,9 @@ class MonitoringService:
             try:
                 # Collecte des métriques
                 metrics = self.get_all_metrics()
-                
-                # Sauvegarde dans Redis pour historique
+                  # Sauvegarde dans Redis pour historique
                 self.redis_client.lpush("monitoring:history", json.dumps(metrics))
-                self.redis_client.ltrim("monitoring:history", 0, 1000)  # Garde les 1000 dernières entrées
+                self.redis_client.ltrim("monitoring:history", 0, self.history_limit)  # Garde les entrées configurables
                 
                 # Publication pour d'autres services
                 self.redis_client.publish("monitoring:metrics", json.dumps(metrics))
@@ -339,7 +387,7 @@ class MonitoringService:
                 # Détection d'anomalies
                 self.detect_anomalies(metrics)
                 
-                time.sleep(30)  # Vérification toutes les 30 secondes
+                time.sleep(self.monitoring_interval)  # Vérification selon l'intervalle configuré
                 
             except Exception as e:
                 logger.error(f"Erreur dans la boucle de monitoring: {e}")
@@ -350,21 +398,40 @@ class MonitoringService:
         alerts = []
         
         # Vérification CPU
-        if metrics["system"].get("cpu", {}).get("usage_percent", 0) > 90:
+        cpu_usage = metrics["system"].get("cpu", {}).get("usage_percent", 0)
+        if cpu_usage > self.cpu_threshold:
             alerts.append({
                 "type": "system",
                 "severity": "critical",
-                "message": f"CPU usage critical: {metrics['system']['cpu']['usage_percent']}%"
+                "message": f"CPU usage critical: {cpu_usage}%"
             })
         
         # Vérification mémoire
-        if metrics["system"].get("memory", {}).get("usage_percent", 0) > 90:
+        memory_usage = metrics["system"].get("memory", {}).get("usage_percent", 0)
+        if memory_usage > self.memory_threshold:
             alerts.append({
                 "type": "system",
                 "severity": "critical",
-                "message": f"Memory usage critical: {metrics['system']['memory']['usage_percent']}%"
+                "message": f"Memory usage critical: {memory_usage}%"
             })
         
+        # Vérification disque
+        disk_usage = metrics["system"].get("disk", {}).get("usage_percent", 0)
+        if disk_usage > self.disk_threshold:
+            alerts.append({
+                "type": "system",
+                "severity": "critical",
+                "message": f"Disk usage critical: {disk_usage}%"
+            })
+        # Vérification mémoire
+        memory_usage = metrics["system"].get("memory", {}).get("usage_percent", 0)
+        if memory_usage > self.memory_threshold:
+            alerts.append({
+                "type": "system",
+                "severity": "critical",
+                "message": f"Memory usage critical: {memory_usage}%"
+            })
+
         # Vérification services
         for service, status in metrics["services"].items():
             if status["status"] in ["unhealthy", "unreachable"]:
@@ -388,7 +455,7 @@ class MonitoringService:
         logger.info("Service de monitoring démarré")
         
         # Démarrage du serveur Flask
-        self.app.run(host='0.0.0.0', port=9000, debug=False)
+        self.app.run(host=self.flask_host, port=self.flask_port, debug=self.flask_debug)
     
     def stop(self):
         """Arrête le service de monitoring"""

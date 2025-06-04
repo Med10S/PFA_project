@@ -34,6 +34,7 @@ BATCH_SIZE = int(os.getenv('BATCH_SIZE', '100'))
 API_ENDPOINT = os.getenv('API_ENDPOINT', 'http://ml-api:8001')
 LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
 ENCRYPTION_KEY = os.getenv('ENCRYPTION_KEY', Fernet.generate_key())
+NODE_ID = os.getenv('NODE_ID', 'extractor-node')
 
 # Queues Redis
 PACKET_QUEUE = 'packet_queue'
@@ -223,7 +224,7 @@ class FeatureExtractionService:
         try:
             result_data = {
                 'timestamp': time.time(),
-                'node_id': os.getenv('HOSTNAME', 'extractor-node'),
+                'node_id': NODE_ID,
                 'results': detection_results,
                 'processing_time': detection_results.get('processing_time_ms', 0)
             }
@@ -285,7 +286,7 @@ class FeatureExtractionService:
             import psutil
             
             status = {
-                'node_id': os.getenv('HOSTNAME', 'extractor-node'),
+                'node_id': NODE_ID,
                 'timestamp': time.time(),
                 'stats': self.stats.copy(),
                 'health': {

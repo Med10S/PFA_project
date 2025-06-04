@@ -29,6 +29,11 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
+REDIS_HOST = os.getenv('REDIS_HOST', 'redis')
+REDIS_PORT = int(os.getenv('REDIS_PORT', '6379'))
+REDIS_DB = int(os.getenv('REDIS_DB', '0'))
+REDIS_PASSWORD = os.getenv('REDIS_PASSWORD', None)
+
 class BackupManager:
     """Gestionnaire principal des sauvegardes"""
     
@@ -132,17 +137,13 @@ class BackupManager:
             alerts_dir = backup_path / 'alerts'
             alerts_dir.mkdir(exist_ok=True)
             
-            redis_host = os.getenv('REDIS_HOST', 'redis')
-            redis_port = int(os.getenv('REDIS_PORT', '6379'))
-            redis_db = int(os.getenv('REDIS_DB', '0'))
-            redis_password = os.getenv('REDIS_PASSWORD', None)
             redis_client = redis.Redis(
-                host=redis_host,
-                port=redis_port,
-                db=redis_db,
-                password=redis_password,
+                host=REDIS_HOST,
+                port=REDIS_PORT,
+                db=REDIS_DB,
+                password=REDIS_PASSWORD,
                 decode_responses=True
-            )            
+            )
             # Sauvegarde des alertes actives
             alert_ids = redis_client.lrange("alerts:all", 0, -1)
             alerts_data = []
