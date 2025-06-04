@@ -20,8 +20,8 @@ python-dotenv==1.0.0
 # Logging et dates
 python-dateutil==2.8.2
 
-# Threading et concurrence
-threading-timer==1.0.0
+# Threading et concurrence are built-in with Python's threading module
+# No external package needed
 
 # Validation de données
 marshmallow==3.20.1

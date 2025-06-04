@@ -21,6 +21,18 @@ log_level = getattr(logging, os.getenv('LOG_LEVEL', 'INFO').upper())
 log_file = os.getenv('LOG_FILE', 'monitoring.log')
 log_format = os.getenv('LOG_FORMAT', '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
+
+PACKET_CAPTURE_HOST = os.getenv('PACKET_CAPTURE_HOST', 'packet-capture')
+FEATURE_EXTRACTOR_HOST = os.getenv('FEATURE_EXTRACTOR_HOST', 'feature-extractor')
+ML_API_HOST = os.getenv('ML_API_HOST', 'ml-api')
+ALERT_MANAGER_HOST = os.getenv('ALERT_MANAGER_HOST', 'alert-manager')
+BACKUP_SERVICE_HOST = os.getenv('BACKUP_SERVICE_HOST', 'backup-service')
+PACKET_CAPTURE_PORT = int(os.getenv('PACKET_CAPTURE_PORT', '9001'))
+FEATURE_EXTRACTOR_PORT = int(os.getenv('FEATURE_EXTRACTOR_PORT', '9002'))
+ML_API_PORT = int(os.getenv('ML_API_PORT', '5000'))
+ALERT_MANAGER_PORT = int(os.getenv('ALERT_MANAGER_PORT', '9003'))
+BACKUP_SERVICE_PORT = int(os.getenv('BACKUP_SERVICE_PORT', '9004'))
+
 logging.basicConfig(
     level=log_level,
     format=log_format,
@@ -215,28 +227,17 @@ class MonitoringService:
         services = {}
         
         # Configuration par défaut des services
-        default_services = {
-            'packet-capture': {'host': 'packet-capture', 'port': 9001},
-            'feature-extractor': {'host': 'feature-extractor', 'port': 9002},
-            'ml-api': {'host': 'ml-api', 'port': 5000},
-            'alert-manager': {'host': 'alert-manager', 'port': 9003},
-            'backup-service': {'host': 'backup-service', 'port': 9004}
-        }
+
+       
         
-        # Lecture des services depuis les variables d'environnement
-        for service_name, defaults in default_services.items():
-            env_prefix = service_name.upper().replace('-', '_')
-            host = os.getenv(f'{env_prefix}_HOST', defaults['host'])
-            port = int(os.getenv(f'{env_prefix}_PORT', str(defaults['port'])))
-            protocol = os.getenv(f'{env_prefix}_PROTOCOL', 'http')
-            enabled = os.getenv(f'{env_prefix}_ENABLED', 'true').lower() == 'true'
-            
-            if enabled:
-                services[service_name] = ServiceMonitor(
-                    service_name, 
-                    f"{protocol}://{host}", 
-                    port
-                )
+        # Configuration des services à monitorer
+        services = {
+            'packet-capture': ServiceMonitor('packet-capture', f'http://{PACKET_CAPTURE_HOST}', PACKET_CAPTURE_PORT),
+            'feature-extractor': ServiceMonitor('feature-extractor', f'http://{FEATURE_EXTRACTOR_HOST}', FEATURE_EXTRACTOR_PORT),
+            'ml-api': ServiceMonitor('ml-api', f'http://{ML_API_HOST}', ML_API_PORT),
+            'alert-manager': ServiceMonitor('alert-manager', f'http://{ALERT_MANAGER_HOST}', ALERT_MANAGER_PORT),
+            'backup-service': ServiceMonitor('backup-service', f'http://{BACKUP_SERVICE_HOST}', BACKUP_SERVICE_PORT)
+        }
         
         return services
         
