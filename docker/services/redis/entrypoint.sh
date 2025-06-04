@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 # Try to set vm.overcommit_memory if available (skip if not available)
 if command -v sysctl > /dev/null 2>&1; then
@@ -15,8 +15,8 @@ if [ -n "$REDIS_PASSWORD" ]; then
     echo "requirepass $REDIS_PASSWORD" >> /usr/local/etc/redis/redis.conf
 fi
 
-# Vérifiez si le fichier de configuration est valide (remove test-config as it's causing issues)
-echo "Configuration Redis générée avec succès"
+# Verifiez si le fichier de configuration est valide
+echo "Configuration Redis generee avec succes"
 
-# Démarrer Redis avec le fichier de configuration interpolé
+# Demarrer Redis avec le fichier de configuration interpole
 exec "$@"
