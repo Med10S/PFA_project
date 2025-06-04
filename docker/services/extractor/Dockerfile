@@ -34,8 +34,8 @@ ENV REDIS_HOST=redis \
     BATCH_SIZE=100 \
     API_ENDPOINT=http://ml-api:8001 \
     LOG_LEVEL=INFO \
-    ENCRYPTION_KEY= \
-    NODE_ID=extractor-node\
+    ENCRYPTION_KEY="" \
+    NODE_ID=extractor-node \
     REDIS_DB=1
 
 # Commande de démarrage
