@@ -1,0 +1,28 @@
+# Requirements pour le service de gestion d'alertes
+# Service de traitement, classification et notification des alertes
+
+# Framework web
+flask==2.3.3
+gunicorn==21.2.0
+
+# Redis pour communication
+redis==5.0.1
+
+# Email et notifications
+email-validator==2.0.0
+smtplib2==0.2.1
+
+# Validation de données
+marshmallow==3.20.1
+
+# Configuration et environnement
+python-dotenv==1.0.0
+
+# Logging et dates
+python-dateutil==2.8.2
+
+# Threading et concurrence
+threading-timer==1.0.0
+
+# Utilitaires
+requests==2.31.0
