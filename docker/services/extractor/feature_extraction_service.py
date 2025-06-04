@@ -18,10 +18,10 @@ import traceback
 from datetime import datetime, timedelta
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
-from cryptography.fernet import Fernet
 import tempfile
 import hashlib
-from scapy.all import wrpcap, rdpcap
+import base64
+from scapy.all import wrpcap, rdpcap, Packet
 
 # Import de votre extracteur
 sys.path.append('/app/extractor')
@@ -43,7 +43,6 @@ PROCESSING_WORKERS = safe_int_env('PROCESSING_WORKERS', 4)
 BATCH_SIZE = safe_int_env('BATCH_SIZE', 100)
 API_ENDPOINT = os.getenv('API_ENDPOINT', 'http://ml-api:8001')
 LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
-ENCRYPTION_KEY = os.getenv('ENCRYPTION_KEY', Fernet.generate_key())
 NODE_ID = os.getenv('NODE_ID', 'extractor-node')
 REDIS_DB = safe_int_env('REDIS_DB', 0)  # Base par défaut Redis
 REDIS_PASSWORD = os.getenv('REDIS_PASSWORD', 'SecureRedisPassword123!')
@@ -70,7 +69,7 @@ class FeatureExtractionService:
     
     def __init__(self):
         self.redis_client = None
-        self.cipher = Fernet(ENCRYPTION_KEY)
+        # Plus de chiffrement - données stockées en clair
         self.is_running = True
         self.feature_extractor = UNSW_NB15_FeatureExtractor()
         self.stats = {
@@ -135,44 +134,54 @@ class FeatureExtractionService:
                 time.sleep(retry_delay)
                 retry_delay *= 2
                 
-        logger.error("💥 Impossible d'établir la connexion Redis après tous les essais")
+        logger.error("💥 Impossible d'établir la connexion Redis après tous les essais")        
         return False
         
-    def decrypt_packet_data(self, encrypted_data):
-        """Déchiffre les données de paquet"""
+    def process_packet_data(self, packet_data):
+        """Traite les données de paquet non chiffrées"""
         try:
-            decrypted = self.cipher.decrypt(encrypted_data)
-            return json.loads(decrypted.decode())
+            # Les données arrivent déjà décodées depuis le nouveau service
+            if isinstance(packet_data, str):
+                return json.loads(packet_data)
+            elif isinstance(packet_data, dict):
+                return packet_data
+            else:
+                logger.error(f"Format de données inattendu: {type(packet_data)}")
+                return None
         except Exception as e:
-            logger.error(f"Erreur déchiffrement: {e}")
+            logger.error(f"Erreur traitement données paquet: {e}")
             return None
-            
+    
     def create_temp_pcap(self, packets_data):
-        """Crée un fichier PCAP temporaire à partir des données"""
+        """Crée un fichier PCAP temporaire à partir des données du service de capture"""
         try:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
             temp_file = self.temp_dir / f"temp_{timestamp}.pcap"
             
-            # Reconstruction des paquets Scapy
+            # Reconstruction des paquets Scapy depuis les données du service de capture
             from scapy.all import Packet
             scapy_packets = []
             
             for packet_data in packets_data:
                 try:
-                    # Reconstruction du paquet depuis raw_data
-                    raw_bytes = packet_data.get('raw_data')
+                    # Reconstruction du paquet depuis raw_bytes (format du service de capture)
+                    raw_bytes = packet_data.get('raw_bytes')
                     if raw_bytes:
-                        if isinstance(raw_bytes, str):
-                            raw_bytes = raw_bytes.encode('latin-1')
-                        packet = Packet(raw_bytes)
-                        packet.time = packet_data.get('timestamp', time.time())
+                        # Décodage base64 des données brutes
+                        packet_bytes = base64.b64decode(raw_bytes)
+                        packet = Packet(packet_bytes)
+                        
+                        # Restaurer le timestamp si disponible
+                        packet.time = packet_data.get('capture_time', time.time())
                         scapy_packets.append(packet)
+                        
                 except Exception as e:
                     logger.warning(f"Erreur reconstruction paquet: {e}")
                     continue
                     
             if scapy_packets:
                 wrpcap(str(temp_file), scapy_packets)
+                logger.debug(f"PCAP temporaire créé: {temp_file} ({len(scapy_packets)} paquets)")
                 return temp_file
             else:
                 logger.warning("Aucun paquet valide pour PCAP")
@@ -275,9 +284,9 @@ class FeatureExtractionService:
             
         except Exception as e:
             logger.error(f"Erreur envoi résultats Redis: {e}")
-            
+
     def process_packet_batch(self, batch_data):
-        """Traite un batch de paquets"""
+        """Traite un batch de paquets non chiffrés"""
         try:
             batch_id = batch_data.get('batch_id', 'unknown')
             packets = batch_data.get('packets', [])
@@ -287,21 +296,23 @@ class FeatureExtractionService:
                 
             logger.info(f"🔄 Traitement batch {batch_id}: {len(packets)} paquets")
             
-            # Déchiffrement des paquets
-            decrypted_packets = []
-            for packet_info in packets:
-                encrypted_data = packet_info.get('data')
-                if encrypted_data:
-                    decrypted = self.decrypt_packet_data(encrypted_data)
-                    if decrypted:
-                        decrypted_packets.append(decrypted)
+            # Traitement direct des paquets (plus de chiffrement)
+            processed_packets = []
+            for packet_data in packets:
+                if isinstance(packet_data, dict):
+                    processed_packets.append(packet_data)
+                else:
+                    # Traitement si format différent
+                    processed = self.process_packet_data(packet_data)
+                    if processed:
+                        processed_packets.append(processed)
                         
-            if not decrypted_packets:
-                logger.warning(f"Aucun paquet déchiffré dans batch {batch_id}")
+            if not processed_packets:
+                logger.warning(f"Aucun paquet valide dans batch {batch_id}")
                 return
                 
-            # Création PCAP temporaire
-            temp_pcap = self.create_temp_pcap(decrypted_packets)
+            # Création PCAP temporaire depuis les données complètes
+            temp_pcap = self.create_temp_pcap(processed_packets)
             if not temp_pcap:
                 return
                 
