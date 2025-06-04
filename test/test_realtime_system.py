@@ -38,6 +38,18 @@ SAMPLE_LOGS = [
         "ct_srv_src": 1, "ct_state_ttl": 1, "ct_dst_ltm": 1, "ct_src_dport_ltm": 1,
         "ct_dst_sport_ltm": 1, "ct_dst_src_ltm": 1, "is_ftp_login": 0, "ct_ftp_cmd": 0,
         "ct_flw_http_mthd": 0, "ct_src_ltm": 1, "ct_srv_dst": 1, "is_sm_ips_ports": 0
+    },
+    {
+        "id": 3, "dur": 0.053829, "proto": "tcp", "service": "https", "state": "INT",
+        "spkts": 2, "dpkts": 1, "sbytes": 148, "dbytes": 96, "rate": 55.732087,
+        "sttl": 56, "dttl": 128, "sload": 2749.449638, "dload": 1783.426792,
+        "sloss": 0, "dloss": 0, "sinpkt": 0.053829, "dinpkt": 0.000000,
+        "sjit": 0.000000, "djit": 0.000000, "swin": 11, "stcpb": 3279792393, "dtcpb": 1272394237,
+        "dwin": 251, "tcprtt": 0.000000, "synack": 0.000000, "ackdat": 0.000000,
+        "smean": 74.0, "dmean": 96.0, "trans_depth": 0, "response_body_len": 0,
+        "ct_srv_src": 1, "ct_state_ttl": 1, "ct_dst_ltm": 1, "ct_src_dport_ltm": 1,
+        "ct_dst_sport_ltm": 1, "ct_dst_src_ltm": 1, "is_ftp_login": 0, "ct_ftp_cmd": 0,
+        "ct_flw_http_mthd": 0, "ct_src_ltm": 1, "ct_srv_dst": 1, "is_sm_ips_ports": 0
     }
 ]
 
