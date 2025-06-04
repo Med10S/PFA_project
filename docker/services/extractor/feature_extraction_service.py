@@ -36,7 +36,7 @@ LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
 ENCRYPTION_KEY = os.getenv('ENCRYPTION_KEY', Fernet.generate_key())
 NODE_ID = os.getenv('NODE_ID', 'extractor-node')
 REDIS_DB = int(os.getenv('REDIS_DB', '0'))
-REDIS_PASSWORD = os.getenv('REDIS_PASSWORD', None)
+REDIS_PASSWORD = os.getenv('REDIS_PASSWORD', 'sbihi')
 
 # Queues Redis
 PACKET_QUEUE = 'packet_queue'
@@ -75,34 +75,50 @@ class FeatureExtractionService:
         self.temp_dir.mkdir(exist_ok=True)
         
     def connect_redis(self):
-        """Connexion à Redis avec retry"""
+        """Connexion à Redis avec retry et configuration optimisée"""
         max_retries = 5
         retry_delay = 1
         
         for attempt in range(max_retries):
             try:
+                # Configuration Redis moderne sans paramètres dépréciés
                 self.redis_client = redis.Redis(
                     host=REDIS_HOST,
                     port=REDIS_PORT,
                     decode_responses=False,
-                    socket_connect_timeout=5,
-                    socket_timeout=5,
-                    retry_on_timeout=True,
+                    socket_connect_timeout=15,
+                    socket_timeout=60,
+                    socket_keepalive=True,
+                    socket_keepalive_options={
+                        'TCP_KEEPIDLE': 1,
+                        'TCP_KEEPINTVL': 3,
+                        'TCP_KEEPCNT': 5,
+                    },
                     health_check_interval=30,
                     db=REDIS_DB,
-                    password=REDIS_PASSWORD
+                    password=REDIS_PASSWORD,
+                    max_connections=10,
+                    retry_on_error=[redis.ConnectionError, redis.TimeoutError],
+                    retry=redis.Retry(redis.backoff.ExponentialBackoff(), 3)
                 )
 
+                # Test de connexion avec timeout
                 self.redis_client.ping()
-                logger.info("Connexion Redis établie")
+                logger.info(f"Connexion Redis établie (tentative {attempt + 1})")
                 return True
                 
+            except redis.ConnectionError as e:
+                logger.error(f"Tentative {attempt + 1} - Erreur connexion Redis: {e}")
+            except redis.TimeoutError as e:
+                logger.error(f"Tentative {attempt + 1} - Timeout Redis: {e}")
             except Exception as e:
                 logger.error(f"Tentative {attempt + 1} - Erreur Redis: {e}")
-                if attempt < max_retries - 1:
-                    time.sleep(retry_delay)
-                    retry_delay *= 2
-                    
+                
+            if attempt < max_retries - 1:
+                time.sleep(retry_delay)
+                retry_delay *= 2
+                
+        logger.error("Impossible d'établir la connexion Redis après tous les essais")
         return False
         
     def decrypt_packet_data(self, encrypted_data):
@@ -195,7 +211,7 @@ class FeatureExtractionService:
             
             # Envoi vers API ML
             response = requests.post(
-                f"{API_ENDPOINT}/detect/batch", # normalement /detect/csv
+                f"{API_ENDPOINT}/detect/batch",
                 json=payload,
                 timeout=30,
                 headers={'Content-Type': 'application/json'}
@@ -366,7 +382,7 @@ class FeatureExtractionService:
             while self.is_running:
                 try:
                     # Récupération batch depuis Redis (bloquant avec timeout)
-                    result = self.redis_client.brpop(PACKET_QUEUE, timeout=5)
+                    result = self.redis_client.brpop(PACKET_QUEUE, timeout=10)
                     
                     if result:
                         queue_name, batch_json = result
@@ -380,11 +396,21 @@ class FeatureExtractionService:
                         except json.JSONDecodeError as e:
                             logger.error(f"Erreur décodage JSON: {e}")
                             self.stats['errors'] += 1
-                            
-                except redis.ConnectionError:
-                    logger.error("Connexion Redis perdue, reconnexion...")
+                    else:
+                        # Timeout normal - pas d'erreur
+                        logger.debug("Timeout normal - aucun batch en attente")
+                        
+                except redis.ConnectionError as e:
+                    logger.error(f"Connexion Redis perdue: {e}")
                     if not self.connect_redis():
                         time.sleep(5)
+                except redis.TimeoutError as e:
+                    logger.debug(f"Timeout Redis normal: {e}")
+                    # Continue la boucle sans erreur
+                    continue
+                except redis.ResponseError as e:
+                    logger.error(f"Erreur de réponse Redis: {e}")
+                    time.sleep(1)
                 except Exception as e:
                     logger.error(f"Erreur boucle principale: {e}")
                     time.sleep(1)
