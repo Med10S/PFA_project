@@ -11,28 +11,34 @@ RUN apt-get update && apt-get install -y \
     bridge-utils \
     net-tools \
     procps \
+    iputils-ping \
+    traceroute \
+    netcat-openbsd \
     && rm -rf /var/lib/apt/lists/*
 
 # Configuration pour le forwarding IP
-RUN echo 'net.ipv4.ip_forward=1' >> /etc/sysctl.conf
+RUN echo 'net.ipv4.ip_forward=1' >> /etc/sysctl.conf \
+    && echo 'net.ipv6.conf.all.forwarding=1' >> /etc/sysctl.conf
 
 # Création du répertoire de travail
 WORKDIR /app
 
-# Copie des requirements spécifiques au service
+# Copie des requirements et scripts
 COPY requirements.txt .
+COPY packet_capture_service.py .
+COPY setup_forwarding.sh .
+COPY entrypoint.sh .
 
 # Installation des dépendances Python
 RUN pip install --no-cache-dir -r requirements.txt
-
-# Copie du service de capture
-COPY packet_capture_service.py .
 
 # Création des dossiers nécessaires
 RUN mkdir -p /app/shared /app/logs /app/buffer
 
 # Configuration des permissions
-RUN chmod +x packet_capture_service.py
+RUN chmod +x packet_capture_service.py \
+    && chmod +x setup_forwarding.sh \
+    && chmod +x entrypoint.sh
 
 # Port d'exposition (pour monitoring)
 EXPOSE 9001
@@ -50,5 +56,5 @@ ENV INTERFACE=eth0 \
     REDIS_PASSWORD="" \
     ENCRYPTION_KEY=""
 
-# Commande de démarrage
-CMD ["python", "packet_capture_service.py"]
+# Commande de démarrage avec entrypoint personnalisé
+ENTRYPOINT ["/app/entrypoint.sh"]
