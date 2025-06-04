@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Activer vm.overcommit_memory
+sysctl -w vm.overcommit_memory=1
+
 # Interpole les variables d'environnement dans le fichier de configuration
 envsubst < /usr/local/etc/redis/redis.conf.template > /usr/local/etc/redis/redis.conf
 

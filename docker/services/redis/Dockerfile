@@ -1,6 +1,12 @@
 # Utilisez l'image officielle de Redis comme base
 FROM redis:latest
 
+# Installez Git et gettext pour envsubst
+RUN apt-get update && \
+    apt-get install -y git gettext-base && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
 # Exposez le port par défaut de Redis
 EXPOSE 6379
 

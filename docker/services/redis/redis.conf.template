@@ -10,15 +10,6 @@ tcp-keepalive 300
 
 # General settings
 databases 16
-
-# Configuration pour l'IDS
-# Base de données pour différents types de données
-# DB 0: Données de capture de paquets
-# DB 1: Features extraites
-# DB 2: Alertes
-# DB 3: Métriques de monitoring
-# DB 4: Configurations et métadonnées
-
 loglevel notice
 logfile ""
 
