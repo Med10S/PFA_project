@@ -96,7 +96,8 @@ class FeatureExtractionService:
         logger.info(f"   - Password: {'***' if REDIS_PASSWORD else 'None'}")
         
         for attempt in range(max_retries):
-            try:                # Configuration Redis simplifiée sans socket_keepalive_options
+            try:
+                # Configuration Redis simplifiée sans socket_keepalive_options
                 self.redis_client = redis.Redis(
                     host=REDIS_HOST,
                     port=REDIS_PORT,
@@ -127,7 +128,6 @@ class FeatureExtractionService:
             except Exception as e:
                 logger.error(f"🔥 Tentative {attempt + 1} - Erreur Redis: {e}")
                 logger.error(f"🔍 Type d'erreur: {type(e)}")
-                import traceback
                 logger.error(f"🔍 Traceback: {traceback.format_exc()}")
                 
             if attempt < max_retries - 1:
@@ -151,6 +151,7 @@ class FeatureExtractionService:
         except Exception as e:
             logger.error(f"Erreur traitement données paquet: {e}")
             return None
+    
     def create_temp_pcap(self, packets_data):
         """Crée un fichier PCAP temporaire à partir des données du service de capture"""
         try:
@@ -220,27 +221,46 @@ class FeatureExtractionService:
     def extract_features(self, temp_pcap_file):
         """Extrait les features UNSW-NB15 depuis un fichier PCAP"""
         try:
-            # Utiliser votre extracteur
+            logger.info(f"🔍 Démarrage extraction features depuis: {temp_pcap_file}")
+            
+            # Vérifier que le fichier existe et est lisible
+            if not temp_pcap_file.exists():
+                logger.error(f"❌ Fichier PCAP non trouvé: {temp_pcap_file}")
+                return pd.DataFrame()
+                
+            file_size = temp_pcap_file.stat().st_size
+            logger.info(f"📁 Taille fichier PCAP: {file_size} bytes")
+            
+            # Utiliser votre extracteur avec gestion d'erreur détaillée
+            logger.info("🔧 Appel de l'extracteur UNSW-NB15...")
             df = self.feature_extractor.process_pcap(str(temp_pcap_file))
             
             if len(df) > 0:
                 self.stats['features_extracted'] += len(df)
-                logger.info(f"Features extraites: {len(df)} flows")
+                logger.info(f"✅ Features extraites: {len(df)} flows")
+                logger.info(f"📊 Colonnes: {list(df.columns)}")
                 return df
             else:
-                logger.warning("Aucune feature extraite")
+                logger.warning("⚠️ Aucune feature extraite")
                 return pd.DataFrame()
                 
+        except AttributeError as e:
+            logger.error(f"❌ Erreur d'attribut dans l'extracteur: {e}")
+            logger.error(f"🔍 Traceback complet: {traceback.format_exc()}")
+            return pd.DataFrame()
         except Exception as e:
-            logger.error(f"Erreur extraction features: {e}")
+            logger.error(f"❌ Erreur extraction features: {e}")
+            logger.error(f"🔍 Type d'erreur: {type(e)}")
+            logger.error(f"🔍 Traceback complet: {traceback.format_exc()}")
             return pd.DataFrame()
         finally:
             # Nettoyer le fichier temporaire
             try:
                 if temp_pcap_file and temp_pcap_file.exists():
                     temp_pcap_file.unlink()
-            except:
-                pass
+                    logger.debug(f"🗑️ Fichier temporaire supprimé: {temp_pcap_file}")
+            except Exception as cleanup_error:
+                logger.warning(f"⚠️ Erreur suppression fichier temp: {cleanup_error}")
                 
     def send_to_ml_api(self, features_df):
         """Envoie les features vers l'API ML pour détection"""
