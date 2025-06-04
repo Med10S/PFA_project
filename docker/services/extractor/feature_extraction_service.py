@@ -45,7 +45,7 @@ API_ENDPOINT = os.getenv('API_ENDPOINT', 'http://ml-api:8001')
 LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
 ENCRYPTION_KEY = os.getenv('ENCRYPTION_KEY', Fernet.generate_key())
 NODE_ID = os.getenv('NODE_ID', 'extractor-node')
-REDIS_DB = safe_int_env('REDIS_DB', 0)
+REDIS_DB = safe_int_env('REDIS_DB', 0)  # Base par défaut Redis
 REDIS_PASSWORD = os.getenv('REDIS_PASSWORD', 'SecureRedisPassword123!')
 
 # Queues Redis
@@ -97,8 +97,7 @@ class FeatureExtractionService:
         logger.info(f"   - Password: {'***' if REDIS_PASSWORD else 'None'}")
         
         for attempt in range(max_retries):
-            try:
-                # Configuration Redis moderne sans paramètres dépréciés
+            try:                # Configuration Redis simplifiée sans socket_keepalive_options
                 self.redis_client = redis.Redis(
                     host=REDIS_HOST,
                     port=REDIS_PORT,
@@ -106,11 +105,6 @@ class FeatureExtractionService:
                     socket_connect_timeout=15,
                     socket_timeout=60,
                     socket_keepalive=True,
-                    socket_keepalive_options={
-                        'TCP_KEEPIDLE': 1,
-                        'TCP_KEEPINTVL': 3,
-                        'TCP_KEEPCNT': 5,
-                    },
                     health_check_interval=30,
                     db=REDIS_DB,
                     password=REDIS_PASSWORD,
