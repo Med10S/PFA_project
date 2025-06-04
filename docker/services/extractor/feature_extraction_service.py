@@ -85,21 +85,13 @@ class FeatureExtractionService:
                 self.redis_client = redis.Redis(
                     host=REDIS_HOST,
                     port=REDIS_PORT,
-                    decode_responses=False,
-                    socket_connect_timeout=15,
-                    socket_timeout=60,
-                    socket_keepalive=True,
-                    socket_keepalive_options={
-                        'TCP_KEEPIDLE': 1,
-                        'TCP_KEEPINTVL': 3,
-                        'TCP_KEEPCNT': 5,
-                    },
-                    health_check_interval=30,
-                    db=REDIS_DB,
+                    decode_responses=False,  # Pour les données binaires
+                    socket_connect_timeout=5,
+                    socket_timeout=5,
                     password=REDIS_PASSWORD,
-                    max_connections=10,
-                    retry_on_error=[redis.ConnectionError, redis.TimeoutError],
-                    retry=redis.Retry(redis.backoff.ExponentialBackoff(), 3)
+                    retry_on_timeout=True,
+                    health_check_interval=30,
+                    db=REDIS_DB
                 )
 
                 # Test de connexion avec timeout
