@@ -19,6 +19,7 @@ from cryptography.fernet import Fernet
 import signal
 import psutil
 from pathlib import Path
+import netifaces
 
 # Configuration
 INTERFACE = os.getenv('INTERFACE', 'eth0')
@@ -382,7 +383,6 @@ def main():
         sys.exit(1)
         
     # Vérification interface
-    import netifaces
     if INTERFACE not in netifaces.interfaces():
         logger.error(f"Interface {INTERFACE} non trouvée")
         logger.info(f"Interfaces disponibles: {netifaces.interfaces()}")
