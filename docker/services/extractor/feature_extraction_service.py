@@ -14,6 +14,7 @@ import logging
 import requests
 import threading
 import pandas as pd
+import traceback
 from datetime import datetime, timedelta
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
@@ -26,16 +27,25 @@ from scapy.all import wrpcap, rdpcap
 sys.path.append('/app/extractor')
 from unsw_nb15_feature_extractor import UNSW_NB15_FeatureExtractor
 
-# Configuration
+# Configuration avec gestion d'erreurs pour les types
+def safe_int_env(env_var, default_value):
+    """Convertit une variable d'environnement en entier de manière sécurisée"""
+    try:
+        value = os.getenv(env_var, str(default_value))
+        return int(value)
+    except (ValueError, TypeError):
+        logger.warning(f"Variable {env_var} non valide, utilisation de la valeur par défaut: {default_value}")
+        return default_value
+
 REDIS_HOST = os.getenv('REDIS_HOST', 'redis')
-REDIS_PORT = int(os.getenv('REDIS_PORT', '6379'))
-PROCESSING_WORKERS = int(os.getenv('PROCESSING_WORKERS', '4'))
-BATCH_SIZE = int(os.getenv('BATCH_SIZE', '100'))
+REDIS_PORT = safe_int_env('REDIS_PORT', 6379)
+PROCESSING_WORKERS = safe_int_env('PROCESSING_WORKERS', 4)
+BATCH_SIZE = safe_int_env('BATCH_SIZE', 100)
 API_ENDPOINT = os.getenv('API_ENDPOINT', 'http://ml-api:8001')
 LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
 ENCRYPTION_KEY = os.getenv('ENCRYPTION_KEY', Fernet.generate_key())
 NODE_ID = os.getenv('NODE_ID', 'extractor-node')
-REDIS_DB = int(os.getenv('REDIS_DB', '0'))
+REDIS_DB = safe_int_env('REDIS_DB', 0)
 REDIS_PASSWORD = os.getenv('REDIS_PASSWORD', 'SecureRedisPassword123!')
 
 # Queues Redis
@@ -73,11 +83,18 @@ class FeatureExtractionService:
         }
         self.temp_dir = Path('/tmp/pcap_processing')
         self.temp_dir.mkdir(exist_ok=True)
-        
+    
     def connect_redis(self):
         """Connexion à Redis avec retry et configuration optimisée"""
         max_retries = 5
         retry_delay = 1
+        
+        # Debug des variables de configuration
+        logger.info(f"🔧 Configuration Redis:")
+        logger.info(f"   - Host: {REDIS_HOST} (type: {type(REDIS_HOST)})")
+        logger.info(f"   - Port: {REDIS_PORT} (type: {type(REDIS_PORT)})")
+        logger.info(f"   - DB: {REDIS_DB} (type: {type(REDIS_DB)})")
+        logger.info(f"   - Password: {'***' if REDIS_PASSWORD else 'None'}")
         
         for attempt in range(max_retries):
             try:
@@ -116,6 +133,9 @@ class FeatureExtractionService:
                 logger.error(f"⏰ Tentative {attempt + 1} - Timeout Redis: {e}")
             except Exception as e:
                 logger.error(f"🔥 Tentative {attempt + 1} - Erreur Redis: {e}")
+                logger.error(f"🔍 Type d'erreur: {type(e)}")
+                import traceback
+                logger.error(f"🔍 Traceback: {traceback.format_exc()}")
                 
             if attempt < max_retries - 1:
                 time.sleep(retry_delay)
