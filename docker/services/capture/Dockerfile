@@ -1,12 +1,20 @@
 # Dockerfile pour le service de capture de paquets
 FROM python:3.11-slim
 
-# Installation des dépendances système
+# Installation des dépendances système pour capture et forwarding
 RUN apt-get update && apt-get install -y \
     tcpdump \
     libpcap-dev \
     gcc \
+    iptables \
+    iproute2 \
+    bridge-utils \
+    net-tools \
+    procps \
     && rm -rf /var/lib/apt/lists/*
+
+# Configuration pour le forwarding IP
+RUN echo 'net.ipv4.ip_forward=1' >> /etc/sysctl.conf
 
 # Création du répertoire de travail
 WORKDIR /app
