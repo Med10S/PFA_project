@@ -1,11 +1,11 @@
-# Utilisez l'image officielle de Redis comme base
-FROM redis:latest
+# Utilisez l'image officielle de Redis comme base (version plus sécurisée)
+FROM redis:8.0-alpine
 
-# Installez Git et gettext pour envsubst
-RUN apt-get update && \
-    apt-get install -y git gettext-base && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+# Installez gettext pour envsubst et procps pour sysctl + mises à jour de sécurité
+RUN apk update && apk upgrade && apk add --no-cache gettext procps
+
+# Créer un utilisateur non-root pour la sécurité
+RUN adduser -D -s /bin/sh redis-user
 
 # Exposez le port par défaut de Redis
 EXPOSE 6379

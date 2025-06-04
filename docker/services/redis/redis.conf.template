@@ -39,7 +39,7 @@ aof-use-rdb-preamble yes
 
 # Security settings
 protected-mode yes
-requirepass ${REDIS_PASSWORD}
+# requirepass ${REDIS_PASSWORD}
 
 # Disable dangerous commands for security
 rename-command FLUSHDB ""
