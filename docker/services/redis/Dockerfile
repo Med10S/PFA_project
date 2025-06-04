@@ -1,5 +1,5 @@
 # Utilisez l'image officielle de Redis comme base (version plus sécurisée)
-FROM redis:8.0d-alpine
+FROM redis:8.0-alpine
 
 # Installez gettext pour envsubst et procps pour sysctl + mises à jour de sécurité
 RUN apk update && apk upgrade && apk add --no-cache gettext procps
