@@ -60,10 +60,6 @@ set-max-intset-entries 512
 zset-max-ziplist-entries 128
 zset-max-ziplist-value 64
 
-# Network optimizations
-tcp-nodelay yes
-repl-disable-tcp-nodelay no
-
 # Replication settings
 repl-backlog-size 1mb
 repl-backlog-ttl 3600
