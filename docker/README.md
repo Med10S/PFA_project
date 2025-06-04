@@ -6,7 +6,6 @@
 docker/
 ├── docker-compose.yml          # Orchestration principale
 ├── config/                     # Configurations partagées
-│   ├── .env.example           # Variables d'environnement
 │   ├── nginx.conf             # Configuration Nginx
 │   ├── redis.conf             # Configuration Redis
 │   └── requirements.txt       # Dépendances Python

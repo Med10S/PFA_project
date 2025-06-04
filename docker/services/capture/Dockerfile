@@ -12,13 +12,13 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /app
 
 # Copie des requirements spécifiques au service
-COPY docker/services/capture/requirements.txt .
+COPY requirements.txt .
 
 # Installation des dépendances Python
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copie du service de capture
-COPY docker/services/capture/packet_capture_service.py .
+COPY packet_capture_service.py .
 
 # Création des dossiers nécessaires
 RUN mkdir -p /app/shared /app/logs /app/buffer
@@ -34,6 +34,7 @@ ENV PYTHONUNBUFFERED=1
 ENV PYTHONPATH=/app
 ENV INTERFACE=eth0 \
     CAPTURE_INTERVAL=10 \
+    REDIS_DB=0 \
     BUFFER_SIZE=1000 \
     REDIS_HOST=redis \
     REDIS_PORT=6379 \

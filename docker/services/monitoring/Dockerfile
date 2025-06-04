@@ -10,13 +10,13 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /app
 
 # Copie des requirements spécifiques au service
-COPY docker/services/monitoring/requirements.txt .
+COPY requirements.txt .
 
 # Installation des dépendances Python
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copie du service de monitoring
-COPY docker/services/monitoring/monitoring_service.py .
+COPY monitoring_service.py .
 
 # Création des dossiers nécessaires
 RUN mkdir -p /app/logs

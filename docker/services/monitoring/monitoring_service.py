@@ -139,7 +139,7 @@ class RedisMonitor:
     def get_redis_metrics(self) -> Dict:
         """Collecte les métriques Redis"""
         try:
-            info = self.redis_client.info()
+            info = self.redis_client.info() # info is a dictionary with Redis metrics
             
             return {
                 "connected_clients": info.get('connected_clients', 0),

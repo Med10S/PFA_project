@@ -35,7 +35,7 @@ API_ENDPOINT = os.getenv('API_ENDPOINT', 'http://ml-api:8001')
 LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
 ENCRYPTION_KEY = os.getenv('ENCRYPTION_KEY', Fernet.generate_key())
 NODE_ID = os.getenv('NODE_ID', 'extractor-node')
-
+REDIS_DB = int(os.getenv('REDIS_DB', '0'))
 # Queues Redis
 PACKET_QUEUE = 'packet_queue'
 FEATURES_QUEUE = 'features_queue'
@@ -85,9 +85,11 @@ class FeatureExtractionService:
                     decode_responses=False,
                     socket_connect_timeout=5,
                     socket_timeout=5,
-                    retry_on_timeout=True
+                    retry_on_timeout=True,
+                    health_check_interval=30,
+                    db=REDIS_DB
                 )
-                
+
                 self.redis_client.ping()
                 logger.info("Connexion Redis établie")
                 return True

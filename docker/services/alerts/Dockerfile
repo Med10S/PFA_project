@@ -10,13 +10,13 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /app
 
 # Copie des requirements spécifiques au service
-COPY docker/services/alerts/requirements.txt .
+COPY requirements.txt .
 
 # Installation des dépendances Python
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copie du service d'alertes
-COPY docker/services/alerts/alert_manager_service.py .
+COPY alert_manager_service.py .
 
 # Création des dossiers nécessaires
 RUN mkdir -p /app/logs
@@ -35,7 +35,7 @@ ENV LOG_LEVEL=INFO \
     LOG_FORMAT="%(asctime)s - %(name)s - %(levelname)s - %(message)s" \
     REDIS_HOST=redis \
     REDIS_PORT=6379 \
-    REDIS_DB=0 \
+    REDIS_DB=2 \
     REDIS_ALERTS_LIMIT=10000 \
     REDIS_SEVERITY_LIMIT=1000 \
     FLASK_HOST=0.0.0.0 \

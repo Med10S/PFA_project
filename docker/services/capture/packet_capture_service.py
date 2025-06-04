@@ -29,7 +29,7 @@ REDIS_PORT = int(os.getenv('REDIS_PORT', '6379'))
 LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
 REDIS_PASSWORD = os.getenv('REDIS_PASSWORD', None)
 ENCRYPTION_KEY = os.getenv('ENCRYPTION_KEY', Fernet.generate_key())
-
+REDIS_DB = int(os.getenv('REDIS_DB', '0'))
 
 # Sécurité
 PACKET_QUEUE = 'packet_queue'
@@ -93,7 +93,8 @@ class SecurePacketCapture:
                     socket_timeout=5,
                     password=REDIS_PASSWORD ,
                     retry_on_timeout=True,
-                    health_check_interval=30
+                    health_check_interval=30,
+                    db=REDIS_DB
                 )
                 
         

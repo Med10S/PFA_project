@@ -25,6 +25,10 @@ load_dotenv()
 log_level = getattr(logging, os.getenv('LOG_LEVEL', 'INFO').upper())
 log_file = os.getenv('LOG_FILE', '/app/logs/alerts.log')
 log_format = os.getenv('LOG_FORMAT', '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+redis_host = os.getenv('REDIS_HOST', 'redis')
+redis_port = int(os.getenv('REDIS_PORT', '6379'))
+redis_db = int(os.getenv('REDIS_DB', '2'))
+redis_password = os.getenv('REDIS_PASSWORD', None)
 
 logging.basicConfig(
     level=log_level,
@@ -290,10 +294,7 @@ class AlertManagerService:
     
     def __init__(self):
         # Configuration Redis via variables d'environnement
-        redis_host = os.getenv('REDIS_HOST', 'redis')
-        redis_port = int(os.getenv('REDIS_PORT', '6379'))
-        redis_db = int(os.getenv('REDIS_DB', '0'))
-        redis_password = os.getenv('REDIS_PASSWORD', None)
+       
         
         self.redis_client = redis.Redis(
             host=redis_host, 

@@ -10,13 +10,13 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /app
 
 # Copie des requirements spécifiques au service
-COPY docker/services/backup/requirements.txt .
+COPY requirements.txt .
 
 # Installation des dépendances Python
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copie du service de backup
-COPY docker/services/backup/backup_service.py .
+COPY backup_service.py .
 
 # Création des dossiers nécessaires
 RUN mkdir -p /app/logs /app/backups

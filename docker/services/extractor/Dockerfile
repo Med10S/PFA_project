@@ -10,15 +10,11 @@ RUN apt-get update && apt-get install -y \
 # Création du répertoire de travail
 WORKDIR /app
 
-# Copie des requirements spécifiques au service
-COPY docker/services/extractor/requirements.txt .
+COPY . .
 
 # Installation des dépendances Python
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copie du service d'extraction et des dépendances
-COPY docker/services/extractor/feature_extraction_service.py .
-COPY nfstream_test/unsw_nb15_feature_extractor.py .
 
 # Création des dossiers nécessaires
 RUN mkdir -p /app/shared /app/logs /app/temp_pcap
@@ -39,7 +35,8 @@ ENV REDIS_HOST=redis \
     API_ENDPOINT=http://ml-api:8001 \
     LOG_LEVEL=INFO \
     ENCRYPTION_KEY= \
-    NODE_ID=extractor-node
+    NODE_ID=extractor-node\
+    REDIS_DB=1
 
 # Commande de démarrage
 CMD ["python", "feature_extraction_service.py"]

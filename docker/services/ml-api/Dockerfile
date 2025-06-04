@@ -10,7 +10,7 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /app
 
 # Copie des requirements spécifiques au service
-COPY docker/services/ml-api/requirements.txt .
+COPY requirements.txt .
 
 # Installation des dépendances Python
 RUN pip install --no-cache-dir -r requirements.txt
@@ -18,6 +18,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copie du service ML
 COPY realtime_detection_service.py .
 COPY models/ ./models/
+COPY functions/ ./functions/
+COPY config.py ./config.py
 
 # Création des dossiers nécessaires
 RUN mkdir -p /app/logs
