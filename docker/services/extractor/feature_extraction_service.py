@@ -36,7 +36,7 @@ LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
 ENCRYPTION_KEY = os.getenv('ENCRYPTION_KEY', Fernet.generate_key())
 NODE_ID = os.getenv('NODE_ID', 'extractor-node')
 REDIS_DB = int(os.getenv('REDIS_DB', '0'))
-REDIS_PASSWORD = os.getenv('REDIS_PASSWORD', 'sbihi')
+REDIS_PASSWORD = os.getenv('REDIS_PASSWORD', 'SecureRedisPassword123!')
 
 # Queues Redis
 PACKET_QUEUE = 'packet_queue'
@@ -85,32 +85,43 @@ class FeatureExtractionService:
                 self.redis_client = redis.Redis(
                     host=REDIS_HOST,
                     port=REDIS_PORT,
-                    decode_responses=False,  # Pour les données binaires
-                    socket_connect_timeout=5,
-                    socket_timeout=5,
-                    password=REDIS_PASSWORD,
-                    retry_on_timeout=True,
+                    decode_responses=False,
+                    socket_connect_timeout=15,
+                    socket_timeout=60,
+                    socket_keepalive=True,
+                    socket_keepalive_options={
+                        'TCP_KEEPIDLE': 1,
+                        'TCP_KEEPINTVL': 3,
+                        'TCP_KEEPCNT': 5,
+                    },
                     health_check_interval=30,
-                    db=REDIS_DB
+                    db=REDIS_DB,
+                    password=REDIS_PASSWORD,
+                    max_connections=10
                 )
 
                 # Test de connexion avec timeout
                 self.redis_client.ping()
-                logger.info(f"Connexion Redis établie (tentative {attempt + 1})")
+                logger.info(f"✅ Connexion Redis établie (tentative {attempt + 1})")
+                
+                # Vérifier la taille de la queue
+                queue_size = self.redis_client.llen(PACKET_QUEUE)
+                logger.info(f"📊 Queue '{PACKET_QUEUE}' contient {queue_size} éléments")
+                
                 return True
                 
             except redis.ConnectionError as e:
-                logger.error(f"Tentative {attempt + 1} - Erreur connexion Redis: {e}")
+                logger.error(f"❌ Tentative {attempt + 1} - Erreur connexion Redis: {e}")
             except redis.TimeoutError as e:
-                logger.error(f"Tentative {attempt + 1} - Timeout Redis: {e}")
+                logger.error(f"⏰ Tentative {attempt + 1} - Timeout Redis: {e}")
             except Exception as e:
-                logger.error(f"Tentative {attempt + 1} - Erreur Redis: {e}")
+                logger.error(f"🔥 Tentative {attempt + 1} - Erreur Redis: {e}")
                 
             if attempt < max_retries - 1:
                 time.sleep(retry_delay)
                 retry_delay *= 2
                 
-        logger.error("Impossible d'établir la connexion Redis après tous les essais")
+        logger.error("💥 Impossible d'établir la connexion Redis après tous les essais")
         return False
         
     def decrypt_packet_data(self, encrypted_data):
@@ -260,7 +271,7 @@ class FeatureExtractionService:
             if not packets:
                 return
                 
-            logger.info(f"Traitement batch {batch_id}: {len(packets)} paquets")
+            logger.info(f"🔄 Traitement batch {batch_id}: {len(packets)} paquets")
             
             # Déchiffrement des paquets
             decrypted_packets = []
@@ -355,11 +366,11 @@ class FeatureExtractionService:
                 
     def start_processing(self):
         """Démarre le service de traitement"""
-        logger.info("=== SERVICE D'EXTRACTION DE FEATURES ===")
+        logger.info("🚀 === SERVICE D'EXTRACTION DE FEATURES ===")
         
         # Connexion Redis
         if not self.connect_redis():
-            logger.error("Impossible de démarrer sans Redis")
+            logger.error("💥 Impossible de démarrer sans Redis")
             return False
             
         # Thread de monitoring
@@ -369,15 +380,18 @@ class FeatureExtractionService:
         
         # Pool de workers
         with ThreadPoolExecutor(max_workers=PROCESSING_WORKERS) as executor:
-            logger.info(f"Service démarré avec {PROCESSING_WORKERS} workers")
+            logger.info(f"⚡ Service démarré avec {PROCESSING_WORKERS} workers")
             
             while self.is_running:
                 try:
+                    logger.info("👀 En attente de nouveaux paquets...")
+                    
                     # Récupération batch depuis Redis (bloquant avec timeout)
                     result = self.redis_client.brpop(PACKET_QUEUE, timeout=10)
                     
                     if result:
                         queue_name, batch_json = result
+                        logger.info(f"📦 Batch reçu depuis Redis!")
                         
                         try:
                             batch_data = json.loads(batch_json.decode())
@@ -390,41 +404,42 @@ class FeatureExtractionService:
                             self.stats['errors'] += 1
                     else:
                         # Timeout normal - pas d'erreur
-                        logger.debug("Timeout normal - aucun batch en attente")
+                        logger.debug("⏰ Timeout normal - aucun batch en attente")
                         
                 except redis.ConnectionError as e:
-                    logger.error(f"Connexion Redis perdue: {e}")
+                    logger.error(f"💔 Connexion Redis perdue: {e}")
                     if not self.connect_redis():
                         time.sleep(5)
                 except redis.TimeoutError as e:
-                    logger.debug(f"Timeout Redis normal: {e}")
+                    logger.debug(f"⏰ Timeout Redis normal: {e}")
                     # Continue la boucle sans erreur
                     continue
                 except redis.ResponseError as e:
-                    logger.error(f"Erreur de réponse Redis: {e}")
+                    logger.error(f"❌ Erreur de réponse Redis: {e}")
                     time.sleep(1)
                 except Exception as e:
-                    logger.error(f"Erreur boucle principale: {e}")
+                    logger.error(f"🔥 Erreur boucle principale: {e}")
                     time.sleep(1)
                     
         return True
 
 def main():
     """Point d'entrée principal"""
-    logger.info("=== SERVICE D'EXTRACTION DE FEATURES ===")
-    logger.info(f"Workers: {PROCESSING_WORKERS}")
-    logger.info(f"Batch size: {BATCH_SIZE}")
-    logger.info(f"API ML: {API_ENDPOINT}")
+    logger.info("🚀 === SERVICE D'EXTRACTION DE FEATURES ===")
+    logger.info(f"👷 Workers: {PROCESSING_WORKERS}")
+    logger.info(f"📦 Batch size: {BATCH_SIZE}")
+    logger.info(f"🤖 API ML: {API_ENDPOINT}")
+    logger.info(f"🔐 Redis Host: {REDIS_HOST}:{REDIS_PORT}")
     
     service = FeatureExtractionService()
     
     try:
         service.start_processing()
     except KeyboardInterrupt:
-        logger.info("Arrêt demandé")
+        logger.info("🛑 Arrêt demandé")
         service.is_running = False
     except Exception as e:
-        logger.error(f"Erreur fatale: {e}")
+        logger.error(f"💥 Erreur fatale: {e}")
         return 1
         
     return 0
