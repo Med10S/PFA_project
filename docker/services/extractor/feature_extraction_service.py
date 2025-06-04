@@ -36,6 +36,8 @@ LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
 ENCRYPTION_KEY = os.getenv('ENCRYPTION_KEY', Fernet.generate_key())
 NODE_ID = os.getenv('NODE_ID', 'extractor-node')
 REDIS_DB = int(os.getenv('REDIS_DB', '0'))
+REDIS_PASSWORD = os.getenv('REDIS_PASSWORD', None)
+
 # Queues Redis
 PACKET_QUEUE = 'packet_queue'
 FEATURES_QUEUE = 'features_queue'
@@ -87,7 +89,8 @@ class FeatureExtractionService:
                     socket_timeout=5,
                     retry_on_timeout=True,
                     health_check_interval=30,
-                    db=REDIS_DB
+                    db=REDIS_DB,
+                    password=REDIS_PASSWORD
                 )
 
                 self.redis_client.ping()
