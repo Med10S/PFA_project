@@ -26,3 +26,6 @@ python-dateutil>=2.8.2
 
 # Utilitaires système
 psutil>=5.9.5
+
+# Web framework for health check
+Flask==2.2.2

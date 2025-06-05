@@ -20,6 +20,7 @@ from datetime import datetime, timedelta
 from scapy.all import sniff, PcapWriter
 from pathlib import Path
 import base64
+from flask import Flask, jsonify # Added Flask and jsonify
 
 # Configuration
 INTERFACE = os.getenv('INTERFACE', 'eth0')
@@ -30,6 +31,7 @@ REDIS_DB = int(os.getenv('REDIS_DB', '0'))
 REDIS_PASSWORD = os.getenv('REDIS_PASSWORD', 'SecureRedisPassword123!')
 LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
 NODE_ID = os.getenv('NODE_ID', 'packet-capture')
+HEALTH_CHECK_PORT = int(os.getenv('HEALTH_CHECK_PORT', '9001')) # Added health check port
 
 # Queues Redis
 PACKET_QUEUE = 'packet_queue'
@@ -65,6 +67,8 @@ class PacketStorageService:
         }
         self.backup_writer = None
         self.current_backup_file = None
+        self.app = Flask(__name__) # Added Flask app initialization
+        self._setup_health_check_route() # Added setup for health check route
         
         # Créer les répertoires
         BACKUP_DIR.mkdir(exist_ok=True)
@@ -301,6 +305,33 @@ class PacketStorageService:
         except Exception as e:
             logger.error(f"Erreur envoi statut: {e}")
             
+    def _setup_health_check_route(self):
+        @self.app.route('/health', methods=['GET'])
+        def health_check():
+            # Basic health check: service is running and can connect to Redis
+            redis_ok = False
+            if self.redis_client:
+                try:
+                    self.redis_client.ping()
+                    redis_ok = True
+                except redis.exceptions.ConnectionError:
+                    redis_ok = False
+            
+            status_code = 200 if self.is_running and redis_ok else 503
+            return jsonify({
+                "status": "healthy" if self.is_running and redis_ok else "unhealthy",
+                "service_status": "running" if self.is_running else "stopped",
+                "redis_connection": "ok" if redis_ok else "error",
+                "node_id": NODE_ID,
+                "timestamp": datetime.now().isoformat()
+            }), status_code
+
+    def _start_flask_app(self):
+        """Starts the Flask app in a separate thread for the health check."""
+        flask_thread = threading.Thread(target=lambda: self.app.run(host='0.0.0.0', port=HEALTH_CHECK_PORT, debug=False), daemon=True)
+        flask_thread.start()
+        logger.info(f"🩺 Health check endpoint running on port {HEALTH_CHECK_PORT}")
+
     def rotate_backup_files(self):
         """Rotation des fichiers de backup"""
         try:
@@ -364,6 +395,9 @@ class PacketStorageService:
         monitor_thread = threading.Thread(target=self.monitoring_loop)
         monitor_thread.daemon = True
         monitor_thread.start()
+
+        # Start Flask app for health check
+        self._start_flask_app() # Added call to start Flask app
         
         try:
             logger.info("🎯 Capture de paquets démarrée - STOCKAGE COMPLET")

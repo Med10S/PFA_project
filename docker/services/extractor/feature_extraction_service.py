@@ -22,6 +22,7 @@ import tempfile
 import hashlib
 import base64
 from scapy.all import wrpcap, rdpcap, Packet
+from flask import Flask, jsonify  # Add Flask for health check
 
 # Import de votre extracteur
 sys.path.append('/app/extractor')
@@ -46,6 +47,7 @@ LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
 NODE_ID = os.getenv('NODE_ID', 'extractor-node')
 REDIS_DB = safe_int_env('REDIS_DB', 0)  # Base par défaut Redis
 REDIS_PASSWORD = os.getenv('REDIS_PASSWORD', 'SecureRedisPassword123!')
+HEALTH_CHECK_PORT = int(os.getenv('HEALTH_CHECK_PORT', '9002'))  # Default port for health check
 
 # Queues Redis
 PACKET_QUEUE = 'packet_queue'
@@ -69,7 +71,6 @@ class FeatureExtractionService:
     
     def __init__(self):
         self.redis_client = None
-        # Plus de chiffrement - données stockées en clair
         self.is_running = True
         self.feature_extractor = UNSW_NB15_FeatureExtractor()
         self.stats = {
@@ -82,7 +83,33 @@ class FeatureExtractionService:
         }
         self.temp_dir = Path('/tmp/pcap_processing')
         self.temp_dir.mkdir(exist_ok=True)
-    
+        self.app = Flask(__name__)
+        self._setup_health_check_route()
+
+    def _setup_health_check_route(self):
+        @self.app.route('/health', methods=['GET'])
+        def health_check():
+            redis_ok = False
+            if self.redis_client:
+                try:
+                    self.redis_client.ping()
+                    redis_ok = True
+                except redis.exceptions.ConnectionError:
+                    redis_ok = False
+            status_code = 200 if self.is_running and redis_ok else 503
+            return jsonify({
+                "status": "healthy" if self.is_running and redis_ok else "unhealthy",
+                "service_status": "running" if self.is_running else "stopped",
+                "redis_connection": "ok" if redis_ok else "error",
+                "node_id": NODE_ID,
+                "timestamp": datetime.now().isoformat()
+            }), status_code
+
+    def _start_flask_app(self):
+        flask_thread = threading.Thread(target=lambda: self.app.run(host='0.0.0.0', port=HEALTH_CHECK_PORT, debug=False), daemon=True)
+        flask_thread.start()
+        logger.info(f"🩺 Health check endpoint running on port {HEALTH_CHECK_PORT}")
+
     def connect_redis(self):
         """Connexion à Redis avec retry et configuration optimisée"""
         max_retries = 5
@@ -448,6 +475,8 @@ class FeatureExtractionService:
         monitor_thread = threading.Thread(target=self.monitoring_loop)
         monitor_thread.daemon = True
         monitor_thread.start()
+        
+        self._start_flask_app()  # Start Flask health check
         
         # Pool de workers
         with ThreadPoolExecutor(max_workers=PROCESSING_WORKERS) as executor:
