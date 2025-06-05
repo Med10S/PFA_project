@@ -22,16 +22,17 @@ log_file = os.getenv('LOG_FILE', 'monitoring.log')
 log_format = os.getenv('LOG_FORMAT', '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 
-PACKET_CAPTURE_HOST = os.getenv('PACKET_CAPTURE_HOST', 'packet-capture')
 FEATURE_EXTRACTOR_HOST = os.getenv('FEATURE_EXTRACTOR_HOST', 'feature-extractor')
-ML_API_HOST = os.getenv('ML_API_HOST', 'ml-api')
-ALERT_MANAGER_HOST = os.getenv('ALERT_MANAGER_HOST', 'alert-manager')
-BACKUP_SERVICE_HOST = os.getenv('BACKUP_SERVICE_HOST', 'backup-service')
-PACKET_CAPTURE_PORT = int(os.getenv('PACKET_CAPTURE_PORT', '9001'))
 FEATURE_EXTRACTOR_PORT = int(os.getenv('FEATURE_EXTRACTOR_PORT', '9002'))
+
+ML_API_HOST = os.getenv('ML_API_HOST', 'ml-api')
 ML_API_PORT = int(os.getenv('ML_API_PORT', '5000'))
+
+PACKET_CAPTURE_HOST = os.getenv('PACKET_CAPTURE_HOST', 'packet-capture')
+PACKET_CAPTURE_PORT = int(os.getenv('PACKET_CAPTURE_PORT', '9001'))
+
 ALERT_MANAGER_PORT = int(os.getenv('ALERT_MANAGER_PORT', '9003'))
-BACKUP_SERVICE_PORT = int(os.getenv('BACKUP_SERVICE_PORT', '9004'))
+ALERT_MANAGER_HOST = os.getenv('ALERT_MANAGER_HOST', 'alert-manager')
 
 logging.basicConfig(
     level=log_level,
@@ -236,7 +237,6 @@ class MonitoringService:
             'feature-extractor': ServiceMonitor('feature-extractor', f'http://{FEATURE_EXTRACTOR_HOST}', FEATURE_EXTRACTOR_PORT),
             'ml-api': ServiceMonitor('ml-api', f'http://{ML_API_HOST}', ML_API_PORT),
             'alert-manager': ServiceMonitor('alert-manager', f'http://{ALERT_MANAGER_HOST}', ALERT_MANAGER_PORT),
-            'backup-service': ServiceMonitor('backup-service', f'http://{BACKUP_SERVICE_HOST}', BACKUP_SERVICE_PORT)
         }
         
         return services
