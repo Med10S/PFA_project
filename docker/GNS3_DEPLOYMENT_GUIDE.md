@@ -53,7 +53,6 @@ This guide provides instructions for deploying the IDS distributed system as ind
 | Monitoring | ids-monitoring | 172.20.0.20 | 9000 |
 | ML-API | ids-ml-api | 172.20.0.30 | 5000 |
 | Alert Manager | ids-alert-manager | 172.20.0.40 | 9003 |
-| Backup | ids-backup | 172.20.0.50 | 9004 |
 | Feature Extractor | ids-feature-extractor | 172.20.0.60 | - |
 | Packet Capture | ids-packet-capture | 172.20.0.70 | - |
 
@@ -77,7 +76,6 @@ Ensure the following directory structure exists:
 ├── logs/           # Application logs
 ├── models/         # ML models
 ├── functions/      # Shared functions
-├── backups/        # Backup storage
 └── buffer/         # Packet buffer
 ```
 
@@ -89,7 +87,6 @@ Each service requires a `.env` file with specific configuration. Create these fi
 - `monitoring/.env`
 - `ml-api/.env`
 - `alerts/.env`
-- `backup/.env`
 - `extractor/.env`
 - `capture/.env`
 
@@ -118,7 +115,6 @@ Refer to individual service deployment guides for specific environment variables
 - **Monitoring:** `http://172.20.0.20:9000/health`
 - **ML-API:** `http://172.20.0.30:5000/health`
 - **Alert Manager:** `http://172.20.0.40:9003/health`
-- **Backup:** `http://172.20.0.50:9004/health`
 
 ### Redis Health Check
 ```bash
@@ -140,8 +136,6 @@ docker run -d --name ids-ml-api --ip 172.20.0.30 --network ids-network ...
 # 4. Alert Manager
 docker run -d --name ids-alert-manager --ip 172.20.0.40 --network ids-network ...
 
-# 5. Backup
-docker run -d --name ids-backup --ip 172.20.0.50 --network ids-network ...
 
 # 6. Feature Extractor
 docker run -d --name ids-feature-extractor --ip 172.20.0.60 --network ids-network ...
@@ -185,9 +179,8 @@ Refer to the following individual deployment guides for detailed instructions:
 2. [Monitoring Service Deployment](./deployments/02_MONITORING_DEPLOYMENT.md)
 3. [ML-API Service Deployment](./deployments/03_ML_API_DEPLOYMENT.md)
 4. [Alert Manager Deployment](./deployments/04_ALERT_MANAGER_DEPLOYMENT.md)
-5. [Backup Service Deployment](./deployments/05_BACKUP_DEPLOYMENT.md)
-6. [Feature Extractor Deployment](./deployments/06_FEATURE_EXTRACTOR_DEPLOYMENT.md)
-7. [Packet Capture Deployment](./deployments/07_PACKET_CAPTURE_DEPLOYMENT.md)
+5. [Feature Extractor Deployment](./deployments/06_FEATURE_EXTRACTOR_DEPLOYMENT.md)
+6. [Packet Capture Deployment](./deployments/07_PACKET_CAPTURE_DEPLOYMENT.md)
 
 ## Support
 
