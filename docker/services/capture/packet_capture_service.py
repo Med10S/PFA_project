@@ -31,6 +31,7 @@ REDIS_DB = int(os.getenv('REDIS_DB', '0'))
 REDIS_PASSWORD = os.getenv('REDIS_PASSWORD', 'SecureRedisPassword123!')
 LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
 NODE_ID = os.getenv('NODE_ID', 'packet-capture')
+STATUS_RESET_INTERVAL = int(os.getenv('STATUS_RESET_INTERVAL', '3600'))  # Intervalle de réinitialisation du statut en secondes
 HEALTH_CHECK_PORT = int(os.getenv('HEALTH_CHECK_PORT', '9001')) # Added health check port
 
 # Queues Redis
@@ -76,6 +77,10 @@ class PacketStorageService:
         # Gestionnaire de signaux
         signal.signal(signal.SIGTERM, self._signal_handler)
         signal.signal(signal.SIGINT, self._signal_handler)
+        
+        self.packets_captured_24h_key = 'metrics:packets_captured'
+        self.packets_captured_24h_window = STATUS_RESET_INTERVAL  # 24h in seconds
+        self.packets_captured_24h_last_reset_key = 'metrics:packets_captured_last_reset'
         
     def _signal_handler(self, signum, frame):
         """Gestionnaire d'arrêt propre"""
@@ -170,6 +175,8 @@ class PacketStorageService:
             if len(self.packet_buffer) >= BUFFER_SIZE:
                 self.send_batch()
                 
+            self.update_packets_captured_24h()
+            
         except Exception as e:
             logger.error(f"Erreur traitement paquet: {e}")
             self.stats['errors'] += 1
@@ -296,6 +303,12 @@ class PacketStorageService:
                 status['packets_per_second'] = self.stats['packets_captured'] / uptime
                 status['storage_rate'] = self.stats['packets_stored'] / uptime
                 
+            try:
+                packets_24h = int(self.redis_client.get(self.packets_captured_24h_key) or 0)
+            except Exception:
+                packets_24h = 0
+            status['packets_captured_24h'] = packets_24h
+            
             status_json = json.dumps(status, default=str)
             
             if self.redis_client:
@@ -441,6 +454,24 @@ class PacketStorageService:
                 pass
                 
         logger.info("✅ Nettoyage terminé")
+
+    def update_packets_captured_24h(self):
+        """Incrémente le compteur Redis sur 24h et le réinitialise chaque 24h."""
+        now = int(time.time())
+        try:
+            last_reset = self.redis_client.get(self.packets_captured_24h_last_reset_key)
+            if last_reset is None:
+                self.redis_client.set(self.packets_captured_24h_last_reset_key, now)
+                self.redis_client.set(self.packets_captured_24h_key, 1)
+            else:
+                last_reset = int(last_reset)
+                if now - last_reset >= self.packets_captured_24h_window:
+                    self.redis_client.set(self.packets_captured_24h_last_reset_key, now)
+                    self.redis_client.set(self.packets_captured_24h_key, 1)
+                else:
+                    self.redis_client.incr(self.packets_captured_24h_key)
+        except Exception as e:
+            logger.error(f"Erreur update_packets_captured_24h: {e}")
 
 def main():
     """Point d'entrée principal"""

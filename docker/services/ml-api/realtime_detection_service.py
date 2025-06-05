@@ -14,6 +14,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 import uvicorn
 import pandas as pd
+import redis
+
 
 # Configuration via variables d'environnement
 API_HOST = os.getenv('API_HOST', '0.0.0.0')
@@ -21,6 +23,10 @@ API_PORT = int(os.getenv('API_PORT', '8000'))
 API_TITLE = os.getenv('API_TITLE', 'Système de Détection d\'Intrusion Temps Réel')
 API_VERSION = os.getenv('API_VERSION', '1.0.0')
 
+redis_host = os.getenv('REDIS_HOST', 'redis')
+redis_port = int(os.getenv('REDIS_PORT', '6379'))
+redis_db = int(os.getenv('REDIS_DB', '2'))
+redis_password = os.getenv('REDIS_PASSWORD', None)
 # Configuration des seuils
 DETECTION_THRESHOLD = float(os.getenv('DETECTION_THRESHOLD', '0.5'))
 CONFIDENCE_THRESHOLD = float(os.getenv('CONFIDENCE_THRESHOLD', '0.7'))
@@ -171,12 +177,28 @@ def generate_alert(result: DetectionResult, background_tasks: BackgroundTasks):
     """Génère une alerte si une attaque est détectée"""
     if result.is_attack and result.confidence >= CONFIDENCE_THRESHOLD:
         alert_data = {
+            "type": "message",
             "timestamp": result.timestamp,
-            "log_id": result.log_id,            "attack_probability": result.attack_probability,
+            "log_id": result.log_id,    
+            "message": "Intrusion détectée", 
+            "type"  
+            "attack_probability": result.attack_probability,
             "confidence": result.confidence,
             "models": result.ml_predictions
         }
-        
+        # Send alert to Redis channel
+        try:
+            redis_client = redis.Redis(
+            host=redis_host, 
+            port=redis_port, 
+            db=redis_db,
+            password=redis_password,
+            decode_responses=True
+        )
+            redis_client.publish('ml', json.dumps(alert_data))
+            logger.info("Alert sent to Redis channel 'ml'")
+        except Exception as e:
+            logger.error(f"Error publishing to Redis: {e}")
         # Log de l'alerte
         if ALERT_CONFIG["enable_logging"]:
             background_tasks.add_task(log_alert, alert_data)

@@ -226,11 +226,7 @@ class MonitoringService:
     def _setup_service_monitors(self) -> Dict:
         """Configure les moniteurs de services via variables d'environnement"""
         services = {}
-        
-        # Configuration par défaut des services
-
-       
-        
+    
         # Configuration des services à monitorer
         services = {
             'packet-capture': ServiceMonitor('packet-capture', f'http://{PACKET_CAPTURE_HOST}', PACKET_CAPTURE_PORT),
@@ -309,6 +305,26 @@ class MonitoringService:
                     <div class="metric-value">{{ "%.1f"|format(system.disk.usage_percent) }}%</div>
                     <p>{{ system.disk.used_gb }}GB / {{ system.disk.total_gb }}GB</p>
                 </div>
+
+                <h2>Redis Metrics</h2>
+                <div class="metric-card">
+                    <h3>Connected Clients</h3>
+                    <div class="metric-value">{{ global_metrics.redis_metrics.connected_clients }}</div>
+                </div>
+                <div class="metric-card">
+                    <h3>Memory Usage</h3>
+                    <div class="metric-value">{{ global_metrics.redis_metrics.used_memory_human }}</div>
+                    <p>Peak: {{ global_metrics.redis_metrics.used_memory_peak_human }}</p>
+                </div>
+                <div class="metric-card">
+                    <h3>Operations</h3>
+                    <div class="metric-value">{{ global_metrics.redis_metrics.instantaneous_ops_per_sec }}/s</div>
+                    <p>Total: {{ global_metrics.redis_metrics.total_commands_processed }}</p>
+                </div>
+                <div class="metric-card">
+                    <h3>Cache Hits/Misses</h3>
+                    <div class="metric-value">{{ global_metrics.redis_metrics.keyspace_hits }}/{{ global_metrics.redis_metrics.keyspace_misses }}</div>
+                </div>
                 
                 <h2>IDS Metrics</h2>
                 <div class="metric-card">
@@ -355,8 +371,8 @@ class MonitoringService:
         
         # Métriques globales depuis Redis
         try:
+            self.global_metrics["redis_metrics"] = redis_metrics
             self.global_metrics["packets_captured"] = int(self.redis_client.get("metrics:packets_captured") or 0)
-            self.global_metrics["features_extracted"] = int(self.redis_client.get("metrics:features_extracted") or 0)
             self.global_metrics["alerts_generated"] = int(self.redis_client.get("metrics:alerts_generated") or 0)
             self.global_metrics["threats_detected"] = int(self.redis_client.get("metrics:threats_detected") or 0)
         except Exception as e:

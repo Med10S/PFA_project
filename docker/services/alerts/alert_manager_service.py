@@ -78,8 +78,6 @@ class AlertProcessor:
             # Enrichissement de l'alerte
             enriched_alert = self.enrich_alert(alert_data)
             
-            # Classification de la sévérité
-            enriched_alert['severity_score'] = self.calculate_severity_score(enriched_alert)
             
             # Ajout des métadonnées
             enriched_alert.update({
@@ -112,24 +110,24 @@ class AlertProcessor:
         """Enrichit une alerte avec des informations supplémentaires"""
         enriched = alert_data.copy()
         
-        # Ajout de la description du type
-        enriched['type_description'] = self.ALERT_TYPES.get(
-            alert_data.get('type', 'unknown'), 
-            'Type d\'alerte inconnu'
-        )
+        # # Ajout de la description du type
+        # enriched['type_description'] = self.ALERT_TYPES.get(
+        #     alert_data.get('type', 'unknown'), 
+        #     'Type d\'alerte inconnu'
+        # )
         
-        # Normalisation de la sévérité
-        severity = alert_data.get('severity', 'medium').lower()
-        if severity not in self.SEVERITY_LEVELS:
-            severity = 'medium'
-        enriched['severity'] = severity
+        # # Normalisation de la sévérité
+        # severity = alert_data.get('severity', 'medium').lower()
+        # if severity not in self.SEVERITY_LEVELS:
+        #     severity = 'medium'
+        # enriched['severity'] = severity
         
-        # Ajout d'informations contextuelles
-        if 'source_ip' in alert_data:
-            enriched['source_info'] = self.get_ip_info(alert_data['source_ip'])
+        # # Ajout d'informations contextuelles
+        # if 'source_ip' in alert_data:
+        #     enriched['source_info'] = self.get_ip_info(alert_data['source_ip'])
         
-        if 'destination_ip' in alert_data:
-            enriched['destination_info'] = self.get_ip_info(alert_data['destination_ip'])
+        # if 'destination_ip' in alert_data:
+        #     enriched['destination_info'] = self.get_ip_info(alert_data['destination_ip'])
         
         return enriched
     
