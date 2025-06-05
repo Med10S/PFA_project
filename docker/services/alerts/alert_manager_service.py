@@ -309,7 +309,7 @@ class AlertManagerService:
         self.redis_severity_limit = int(os.getenv('REDIS_SEVERITY_LIMIT', '1000'))
         
         # Canaux d'écoute configurables
-        alert_channels = os.getenv('ALERT_CHANNELS', 'alerts:ml,alerts:monitoring,alerts:network').split(',')
+        alert_channels = os.getenv('ALERT_CHANNELS', 'ml,monitoring,network').split(',')
         self.alert_channels = [channel.strip() for channel in alert_channels]
         
         # Composants
