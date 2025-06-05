@@ -1,0 +1,24 @@
+%%{ init: { 'theme': 'base', 'themeVariables': { 'background': '#ffffff' } } }%%
+graph TD
+    A[Données d'Entrée] --> B{Type de Données}
+    B -->|Single Log| C[NetworkLog Pydantic]
+    B -->|Batch| D[LogBatch Pydantic]
+    B -->|CSV| E[CSVLogRequest]
+    
+    C --> F[detect_single_log]
+    D --> G[detect_batch_logs]
+    E --> H[detect_csv_logs]
+    
+    F --> I[RealtimePreprocessor]
+    G --> I
+    H --> I
+    
+    I --> J[ModelLoader.predict]
+    J --> K{Stratégie}
+    K -->|ensemble| L[AdvancedEnsembleClassifier]
+    K -->|hybrid| M[HybridDetectionSystem]
+    
+    L --> N[Prédiction Finale]
+    M --> N
+    N --> O[DetectionResult]
+    O --> P[Génération d'Alertes]
