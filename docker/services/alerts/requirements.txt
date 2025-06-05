@@ -10,7 +10,6 @@ redis==5.0.1
 
 # Email et notifications
 email-validator==2.0.0
-smtplib2==0.2.1
 
 # Validation de données
 marshmallow==3.20.1
