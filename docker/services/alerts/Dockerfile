@@ -3,6 +3,7 @@ FROM python:3.11-slim
 
 # Installation des dépendances système
 RUN apt-get update && apt-get install -y \
+    vim \
     gcc \
     && rm -rf /var/lib/apt/lists/*
 

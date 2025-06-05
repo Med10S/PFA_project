@@ -16,10 +16,7 @@ from email.mime.multipart import MIMEMultipart
 from typing import Dict, List
 import redis
 from flask import Flask, jsonify, request
-from dotenv import load_dotenv
 
-# Chargement des variables d'environnement
-load_dotenv()
 
 # Configuration du logging
 log_level = getattr(logging, os.getenv('LOG_LEVEL', 'INFO').upper())
