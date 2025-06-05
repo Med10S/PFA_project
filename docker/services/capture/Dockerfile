@@ -7,7 +7,7 @@ RUN apt-get update && apt-get install -y \
     libpcap-dev \
     gcc \
     iptables \
-    vi \
+    vim \
     iproute2 \
     bridge-utils \
     net-tools \
