@@ -2,7 +2,7 @@
 
 ## 📖 À Propos de ce Projet
 
-Ce projet présente un **Système de Détection d'Intrusion (IDS) réseau intelligent et distribué** développé dans le cadre d'un Projet de Fin d'Année (PFA) en Master 2. Il combine les dernières avancées en intelligence artificielle avec une architecture microservices robuste pour offrir une solution de cybersécurité moderne et performante.
+Ce projet présente un **Système de Détection d'Intrusion (IDS) réseau intelligent et distribué** développé dans le cadre d'un Projet de Fin d'Année (PFA). Il combine les dernières avancées en intelligence artificielle avec une architecture microservices robuste pour offrir une solution de cybersécurité moderne et performante.
 
 ## 🎯 Objectifs du Projet
 
@@ -237,7 +237,7 @@ Ce projet d'IDS représente une **synthèse réussie entre recherche académique
 
 L'approche **hybride multi-modèles** combinée à une **architecture microservices** offre non seulement d'excellentes performances de détection, mais aussi une base solide pour l'évolution et l'adaptation aux nouvelles menaces cyber.
 
-Ce travail illustre parfaitement les compétences acquises en Master GTR et ouvre de nombreuses perspectives pour le développement de solutions de cybersécurité innovantes.
+Ce travail illustre parfaitement les compétences acquises en GTR et ouvre de nombreuses perspectives pour le développement de solutions de cybersécurité innovantes.
 
 ---
 
