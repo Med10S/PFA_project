@@ -242,3 +242,5 @@ Ce travail illustre parfaitement les compétences acquises en Master GTR et ouvr
 ---
 
 **📧 Pour plus d'informations** : Consultez le [README.md](/Production/README.md) pour les détails techniques complets, l'installation et l'utilisation du système.
+
+| *Version : 1.0 | Date : Janvier 2025*
